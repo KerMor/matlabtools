@@ -33,6 +33,12 @@ function [t, matches, parents, locations] = FindInstance(obj, type, varargin)
 % [t, m] = FindInstance(s,'RandStream','Seed','NormalTransform');
 % disp(m);
 %
+% @new{0,6,dw,2012-09-25} Added a cell array of the according locations/paths within the object
+% hierarchy as optional return value
+%
+% @change{0,6,dw,2012-07-20) No longer running into an error if an extra specified property
+% could not be found
+%
 % @author Daniel Wirtz @date 2012-06-11
 % This class has originally been developed as part of the framework
 % KerMor - Model Order Reduction using Kernels:
