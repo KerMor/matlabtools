@@ -67,7 +67,7 @@ classdef PrintTable < handle
 % t.display;
 %
 % % PrintTable with "row header" mode
-% t = PrintTable('This is PrintTable_RowHeader_Caption test, created on %s',datestr(now));
+% t = PrintTable('This is PrintTable-RowHeader-Caption test, created on %s',datestr(now));
 % t.HasRowHeader = true;
 % t.HasHeader = true;
 % t.addRow('A','B','C');
@@ -118,6 +118,9 @@ classdef PrintTable < handle
 % - http://tex.stackexchange.com/questions/2917/resize-paper-to-mbox
 % - http://tex.stackexchange.com/questions/22173
 % - http://www.weinelt.de/latex/
+%
+% @ne{0,6,dw,2012-09-19} Added printing support for function handles and improved output for
+% numerical values
 %
 % @new{0,6,dw,2012-07-16} 
 % - Added an overload for the "ctranspose" method of MatLab; now easy switching of rows and
@@ -539,7 +542,9 @@ classdef PrintTable < handle
             if strcmp(this.Format,'tex') || ~this.TightPDF
                 fprintf(outfile,'\\begin{table}[!hb]\n\t\\centering\n\t');
             elseif ~isempty(this.Caption)
-                fprintf(outfile,'Table: %s\\newline\\\\asfasf\n',this.Caption);
+                % Enable this if you want, but i found no straight way of putting the caption
+                % above the table (for the given time&resources :-))
+                %fprintf(outfile,'Table: %s\n',this.Caption);
             end
             fprintf(outfile,'\\begin{tabular}{%s}\n',repmat('l',1,cols));
             % Print all rows
@@ -577,27 +582,27 @@ classdef PrintTable < handle
 
             texfile = fullfile(path, [fname '.tex']);
             fid = fopen(texfile,'w');
-            fprintf(fid,'\\documentclass{article}\n\\begin{document}');
+            fprintf(fid,'\\documentclass{article}\n\\begin{document}\n');
             if this.TightPDF
-                fprintf(fid,'\\newsavebox{\\tablebox}\\begin{lrbox}{\\tablebox}\n');
+                fprintf(fid,'\\newsavebox{\\tablebox}\n\\begin{lrbox}{\\tablebox}\n');
             else
                 fprintf(fid, '\\thispagestyle{empty}\n');
             end
             % Print actual tex table
             this.print(fid);
             if this.TightPDF
-                fprintf(fid, ['\\end{lrbox}\\pdfhorigin=0pt\\pdfvorigin=0pt'...
-                    '\\pdfpagewidth=\\wd\\tablebox\\pdfpageheight=\\ht\\tablebox'...
-                    '\\advance\\pdfpageheight by \\dp\\tablebox'...
-                    '\\shipout\\box\\tablebox']);
+                fprintf(fid, ['\\end{lrbox}\n\\pdfhorigin=0pt\\pdfvorigin=0pt\n'...
+                    '\\pdfpagewidth=\\wd\\tablebox\\pdfpageheight=\\ht\\tablebox\n'...
+                    '\\advance\\pdfpageheight by \\dp\\tablebox\n'...
+                    '\\shipout\\box\\tablebox\n']);
             end
-            fprintf(fid,'\n\n\\end{document}');
+            fprintf(fid,'\\end{document}');
             fclose(fid);
             [status, msg] = system(sprintf('pdflatex -interaction=nonstopmode -output-directory="%s" %s',path,texfile));
             if status ~= 0
                 error('pdfLaTeX finished with errors:\n%s',msg);
             else
-                delete(texfile,fullfile(path, [fname '.aux']),fullfile(path, [fname '.log']));
+                %delete(texfile,fullfile(path, [fname '.aux']),fullfile(path, [fname '.log']));
                 fprintf('done!\n');
             end
         end
@@ -744,7 +749,7 @@ classdef PrintTable < handle
         
         function t = test_PrintTable_RowHeader_Caption
             % A simple test for PrintTable
-            t = PrintTable('This is PrintTable_RowHeader_Caption test, created on %s',datestr(now));
+            t = PrintTable('This is PrintTable RowHeader Caption test, created on %s',datestr(now));
             t.HasRowHeader = true;
             t.HasHeader = true;
             t.addRow('A','B','C');
