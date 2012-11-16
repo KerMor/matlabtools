@@ -1,7 +1,7 @@
 classdef BinTree < handle
 % BinTree: A weighted binary tree.
 %
-% The general.collections.BinTreeNode have a key and value property. The key values used only must
+% The BinTreeNode have a key and value property. The key values used only must
 % implement the lt/gt/eq methods, so either be native data-types or objects. Strings cannot be used
 % as indices for this data structure.
 %
@@ -150,7 +150,7 @@ classdef BinTree < handle
             % Performs an in-place search for the value associated with the given key.
             u = inf(size(keys));
             l = -u;
-            minu = general.collections.BinTreeNode.empty(0,1);
+            minu = BinTreeNode.empty(0,1);
             maxl = minu;
             while true
                 lempt = cellfun('isempty',{n.left});
@@ -216,7 +216,7 @@ classdef BinTree < handle
         
         function n = insert(this, n, key, value)
             if isempty(n)
-                n = general.collections.BinTreeNode(key, value);
+                n = BinTreeNode(key, value);
             elseif lt(key,n.Key)
                 n.left = this.insert(n.left, key, value);
                 if n.left.height - this.height(n.right)== 2
@@ -289,7 +289,7 @@ classdef BinTree < handle
             res = true;
             
             %% Init
-            t = general.collections.BinTree;
+            t = BinTree;
             n = 2^4;
             
             %% Test usage as Key-Value BinaryTree

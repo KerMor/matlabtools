@@ -224,7 +224,7 @@ classdef DPCM
                 tmp = metaclass(DPCMobj);
                 n = tmp.Name;
             end
-            recurCheck(DPCMobj, general.collections.Dictionary, n);
+            recurCheck(DPCMobj, Dictionary, n);
             
             % Store collected messages
             msg = messages;

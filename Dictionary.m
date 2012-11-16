@@ -10,7 +10,7 @@ classdef Dictionary < handle
 %
 % Example:
 % @code
-% d = general.collections.Dictionary;
+% d = Dictionary;
 % d('somekey') = 'somevalue';
 % d('nr') = 2346;
 % d('myclass') = 'some object instance';
@@ -29,9 +29,9 @@ classdef Dictionary < handle
 % @change{0,3,dw,2011-04-20} - Improved the subsref and subsasgn methods to forward eventual
 % further sub-assignments to the respective underlying values. Now i.e. assignments of the type
 % @code d('t').Somefield @endcode natively creates a struct at @code d('t') @endcode.
-% - Added a method general.collections.Dictionary.containsKey
-% - Added two properties general.collections.Dictionary.Keys and
-% general.collections.Dictionary.Values
+% - Added a method Dictionary.containsKey
+% - Added two properties Dictionary.Keys and
+% Dictionary.Values
 %
 % @new{0,3,dw,2011-04-06} Added this class.
 %
@@ -173,7 +173,7 @@ classdef Dictionary < handle
         function display(this)
             % Overrides the default display method in MatLab and prints a list of keys and
             % values inside the dictionary.
-            fprintf('general.collections.Dictionary with %d elements.\n',this.Count);
+            fprintf('Dictionary with %d elements.\n',this.Count);
             arrayfun(@(kv)(disp({'Key:' kv.Key 'Value:' kv.Value})),this.List);
         end
     end

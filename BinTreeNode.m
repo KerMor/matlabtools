@@ -32,14 +32,14 @@ classdef BinTreeNode < handle
         end
         
         function set.left(this, value)
-            if ~isempty(value) && ~isa(value,'general.collections.BinTreeNode')
+            if ~isempty(value) && ~isa(value,'BinTreeNode')
                 error('Left property must be a BinTreeNode');
             end
             this.left = value;
         end
         
         function set.right(this, value)
-            if ~isempty(value) && ~isa(value,'general.collections.BinTreeNode')
+            if ~isempty(value) && ~isa(value,'BinTreeNode')
                 error('Right property must be a BinTreeNode');
             end
             this.right = value;

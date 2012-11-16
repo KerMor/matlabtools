@@ -61,7 +61,7 @@ classdef DPCMObject < handle
             % Check if this constructor has already been called; if yes, dont assign a new ID
             % as this might lead to errors in subclasses or with properties (see above)
             if isempty(this.ID)
-                this.PropertiesChanged = general.collections.Dictionary;
+                this.PropertiesChanged = Dictionary;
                 this.ID = DPCMObject.generateID;
             end
         end
