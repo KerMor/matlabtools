@@ -96,7 +96,7 @@ classdef DPCM
         % first entry.
         %
         % @type cell
-        PropClasses = {'critical','important','alglimit','scaling','optional','data','experimental'};
+        PropClasses = {'critical','important','alglimit','scaling','optional','data','experimental','verbose'};
         
         % Change this value to a more expressive one, i.e. a link to your software
         % documentation which includes the DPCM part.
