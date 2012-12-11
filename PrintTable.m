@@ -119,7 +119,9 @@ classdef PrintTable < handle
 % - http://tex.stackexchange.com/questions/22173
 % - http://www.weinelt.de/latex/
 %
-% @ne{0,6,dw,2012-09-19} Added printing support for function handles and improved output for
+% @change{0,7,dw,2012-12-11} Improved automatic setting of TabCharLen default values.
+%
+% @new{0,6,dw,2012-09-19} Added printing support for function handles and improved output for
 % numerical values
 %
 % @new{0,6,dw,2012-07-16} 
@@ -175,17 +177,14 @@ classdef PrintTable < handle
 %
 % @todo replace fprintf by sprintf and build string that can be returned by this.print and if
 % no output argument is collected directly print it.
-    
+
     properties 
-	   % Equivalent length of a tab character in single-space characters
+	    % Equivalent length of a tab character in single-space characters
         %
-        % The default value is actually read from the local MatLab
-        % preferences via
-        % 'com.mathworks.services.Prefs.getIntegerPref('EditorSpacesPerTab')'
-        % If no value is found, 4 is used.
+        % @default PrintTable.DefaultTabCharLen @type integer
         %
-        % @default 8 @type integer
-        TabCharLen = 8; %com.mathworks.services.Prefs.getIntegerPref('EditorSpacesPerTab',4);
+        % See also: PrintTable.getDefaultTabCharLen
+        TabCharLen = PrintTable.getDefaultTabCharLen;
 	   
         % A char sequence to separate the different columns.
         %
@@ -796,4 +795,38 @@ classdef PrintTable < handle
         end
     end
     
+    methods(Static,Access=private)
+        function l = getDefaultTabCharLen
+            % Computes the default value for equivalent length of a tab character in
+            % single-space characters.
+            %
+            % Defining it here avoids having to adjust the TabCharLen at every instance when the
+            % shipped default is not matching.
+            %
+            % Change this method to return whatever TabCharLength is default to your system if
+            % the automatic detection does not work, however, please share your
+            % situation/solution with me so i can include it here. Thanks!
+            
+            % Use default value 8
+            defaultLen = 8;
+            
+            jDesktop = com.mathworks.mde.desk.MLDesktop.getInstance;
+            % Display of output in command window
+            if ~isempty(jDesktop.getClient('Command Window'))
+                % Display of output in console etc
+                l = com.mathworks.services.Prefs.getIntegerPref('CommandWindowSpacesPerTab',defaultLen);
+            elseif isunix
+                [c, l] = system('echo -n $''\t'' | wc -L');
+                if c == 0
+                    l = str2double(l);
+                else
+                    l = defaultLen;
+                end
+            else
+                % Not checked yet for windows command line, but i guess this will be a rare
+                % occasion. Please share if you encounter this situation.
+                l = defaultLen;
+            end
+        end
+    end
 end
