@@ -494,6 +494,12 @@ classdef PlotManager < handle
             this.cnt = 0;
         end
         
+        function resetCount(this)
+            % Resets the current axes handle count so that subsequent calls to "nextPlot" will
+            % result re-returning the current subplot's axes
+            this.cnt = 0;
+        end
+        
         function delete(this)
             if ~this.LeaveOpen
                 this.closeAll;
