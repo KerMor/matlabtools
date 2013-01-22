@@ -691,7 +691,7 @@ classdef PrintTable < handle
             end
         end
         
-        function str = implode(~, data, glue, format)
+        function str = implode(this, data, glue, format)%#ok
             str = '';
             if ~isempty(data)
                 if nargin < 3
