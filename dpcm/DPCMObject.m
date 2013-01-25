@@ -170,27 +170,32 @@ classdef DPCMObject < handle
     end
     
     methods(Static, Access=protected)
-        function obj = loadobj(obj)
+        function obj = loadobj(obj, from)
             % Re-register any registered change listeners!
             %
             % @change{0,6,dw,2012-01-17} Checking if any properties registered in the
             % PropertiesChanged dictionary are not present anymore (due to updates etc) and
             % removing them from the dictionary if that is the case.
-            if isa(obj, 'DPCMObject') && ~isempty(obj.PropertiesChanged)
-                keys = obj.PropertiesChanged.Keys;
-                for idx = 1:obj.PropertiesChanged.Count
-                    ps = obj.PropertiesChanged(keys{idx});
-                    if ~ps.Changed && ~any(strcmp(ps.Level,'data'))
-                        if isprop(obj,ps.Name)
-                            addlistener(obj,ps.Name,'PostSet',@(src,evd)obj.PropPostSetCallback(src,evd));
-                        else
-                            warning('DPCMObject:load','Property %s of DPCMObject #%s (class %s) does not exist anymore.\nRemoving it from ProperitesChanged dictionary.',ps.Name,obj.ID,class(obj));
-                            obj.PropertiesChanged.clear(keys{idx});
+            if nargin > 1
+                obj.ID = from.ID;
+                obj.WorkspaceVariableName = from.WorkspaceVariableName;
+                if isfield(from,'PropertiesChanged') && ~isempty(from.PropertiesChanged)
+                    obj.PropertiesChanged = from.PropertiesChanged;
+                    keys = obj.PropertiesChanged.Keys;
+                    for idx = 1:obj.PropertiesChanged.Count
+                        ps = obj.PropertiesChanged(keys{idx});
+                        if ~ps.Changed && ~any(strcmp(ps.Level,'data'))
+                            if isprop(obj,ps.Name)
+                                addlistener(obj,ps.Name,'PostSet',@(src,evd)obj.PropPostSetCallback(src,evd));
+                            else
+                                warning('DPCMObject:load','Property %s of DPCMObject #%s (class %s) does not exist anymore.\nRemoving it from ProperitesChanged dictionary.',ps.Name,obj.ID,class(obj));
+                                obj.PropertiesChanged.clear(keys{idx});
+                            end
                         end
                     end
                 end
-            else
-                warning('DPCM:incorrect_loadobj','Argument passed to loadobj is not a DPCMObject instance.\nNot registering event listeners for properties.');
+            elseif ~isa(obj,'DPCMObject')
+                warning('DPCM:loadobj','Argument "obj" not a DPCMObject instance but no argument to initialize from given!');
             end
         end
     end
