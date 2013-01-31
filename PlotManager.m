@@ -392,7 +392,7 @@ classdef PlotManager < handle
             if length(format) > 1
                 fmtstr = [sprintf('%s, ',format{1:end-1}) format{end}];
             end
-            fprintf('Saving %d current figures as "%s"...', n, fmtstr);
+            fprintf('Saving %d current figures as "%s" in %s...', n, fmtstr, folder);
             eff_folder = folder;
             fmts = length(format);
             for idx=1:n
