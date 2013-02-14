@@ -119,6 +119,10 @@ classdef PrintTable < handle
 % - http://tex.stackexchange.com/questions/22173
 % - http://www.weinelt.de/latex/
 %
+% @new{0,7,dw,2013-02-14} Added a new property "TexOutputNumericValueDetection" that
+% automatically detects (via str2num) if a cell content can be interpreted as a numeric value
+% and wraps it in dollar characters when LaTeX output is set. This is switched on by default.
+%
 % @change{0,7,dw,2012-12-11} Improved automatic setting of TabCharLen default values.
 %
 % @new{0,6,dw,2012-09-19} Added printing support for function handles and improved output for
@@ -244,18 +248,37 @@ classdef PrintTable < handle
     end
     
     properties(Dependent)
-	   % The number of rows in the current table
-	   %
-	   % @type integer
+        % The number of rows in the current table
+        %
+        % @type integer
         NumRows;
+        
+        % Flag that tells the PrintTable to surround numerical values with dollar signs "$$"
+        % to obtain a more suitable LaTeX number representation.
+        %
+        % Set to false to produce plain output of cell contents "as they are".
+        %
+        % @type logical @default true
+        TexOutputNumericValueDetection;
     end
     
     properties(SetAccess=private)
         % The string cell data
         data;
         
+        % Flag matrix to indicate if a cell value is numeric or not.
+        %
+        % Used for TeX output.
+        %
+        % See also: TexOutputNumericValueDetection
+        numerics;
+        
         % Maximum content length for each colummn
         contlen;
+    end
+    
+    properties(Access=private)
+        fNumTexOut = true;
     end
     
     methods
@@ -307,6 +330,18 @@ classdef PrintTable < handle
                     error('Unsupported format: %s',t.Format);
                 end
             end
+        end
+        
+        function str = toString(this)
+            % Returns a character array representation of the current table.
+            %
+            % Return values:
+            % str: The table as string @type char
+            f = fopen('tmpout','w+');
+            this.print(f);
+            fclose(f);
+            str = fileread('tmpout');
+            delete('tmpout');
         end
         
         function saveToFile(this, filename, openfile)
@@ -400,7 +435,7 @@ classdef PrintTable < handle
 %                 error('Input argument mismatch. If you specify a format string cell the number of arguments (=%d) to add must equal the number of format strings (=%d).',length(varargin)-1,length(varargin{end}));
             end
             if isempty(this.data)
-                this.data{1} = this.stringify(varargin);
+                [this.data{1}, this.numerics] = this.stringify(varargin);
                 this.contlen = ones(1,length(this.data{1}));
             else
                 % Check new number of columns
@@ -412,10 +447,10 @@ classdef PrintTable < handle
                     error('Inconsistent row length. Current length: %d, passed: %d',length(this.data{1}),newlen);
                 end
                 % Add all values
-                this.data{end+1} = this.stringify(varargin);
+                [this.data{end+1}, this.numerics(end+1,:)] = this.stringify(varargin);
             end
             % Record content length while building the table
-            this.contlen = max([this.contlen; cellfun(@length,this.data{end})]);
+            this.updateContentLength(length(this.data));
         end
         
         function clear(this)
@@ -434,6 +469,9 @@ classdef PrintTable < handle
             end
             transposed.contlen = cellfun(@(row)max(cellfun(@(el)length(el),row)),...
                 this.data);
+            % Trigger correct content length guessing if need be
+            transposed.TexOutputNumericValueDetection = this.fNumTexOut;
+            transposed.numerics = this.numerics';
         end
         
         function copy = clone(this)
@@ -446,6 +484,8 @@ classdef PrintTable < handle
             copy.TightPDF = this.TightPDF;
             copy.data = this.data;
             copy.contlen = this.contlen;
+            copy.numerics = this.numerics;
+            copy.fNumTexOut = this.fNumTexOut;
         end
         
         function set.ColSep(this, value)
@@ -499,9 +539,34 @@ classdef PrintTable < handle
                 value = max(0,value-1);
             end
         end
+        
+        function set.TexOutputNumericValueDetection(this, value)
+            if this.fNumTexOut ~= value
+                if ~islogical(value) || ~isscalar(value)
+                    error('TexOutputNumericValueDetection must be true or false.');
+                end
+                this.fNumTexOut = value;
+                if ~isempty(this.data)
+                    this.contlen = ones(1,length(this.data{1}));
+                    for idx = 1:length(this.data)
+                        this.updateContentLength(idx);
+                    end
+                end
+            end
+        end
+        
+        function value = get.TexOutputNumericValueDetection(this)
+            value = this.fNumTexOut;
+        end
     end
     
     methods(Access=private)
+        
+        function updateContentLength(this, idx)
+            fun = @(str,num)length(str) + 2*num; %2 characters for $ tex environment
+            isnum = num2cell(this.numerics(idx,:));
+            this.contlen = max([this.contlen; cellfun(fun,this.data{idx},isnum)]);
+        end
         
         function printPlain(this, outfile)
             % Prints the table as plain text
@@ -509,13 +574,12 @@ classdef PrintTable < handle
                 fprintf(outfile,'Table ''%s'':\n',this.Caption);
             end
             for ridx = 1:length(this.data)
-                row = this.data{ridx};
-                this.printRow(row,outfile,this.ColSep);
-                fprintf(outfile,'%s\n',row{end});
+                this.printRow(ridx,outfile,this.ColSep);
+                fprintf(outfile,'\n');
                 if ridx == 1 && this.HasHeader
                     % Compute number of tabs
                     ttabs = 0;
-                    for i = 1:length(row)
+                    for i = 1:length(this.data{ridx})
                         ttabs = ttabs +  ceil((length(this.ColSep)*(i~=1)+this.contlen(i))/this.TabCharLen);
                     end
                     fprintf(outfile,'%s\n',repmat('_',1,(ttabs+1)*this.TabCharLen));
@@ -548,10 +612,9 @@ classdef PrintTable < handle
             fprintf(outfile,'\\begin{tabular}{%s}\n',repmat('l',1,cols));
             % Print all rows
             for ridx = 1:length(this.data)
-                row = this.data{ridx};
                 fprintf(outfile,'\t\t');
-                this.printRow(row,outfile,'& ');
-                fprintf(outfile,'%s\\\\\n',row{end});
+                this.printRow(ridx,outfile,'& ');
+                fprintf(outfile,'\\\\\n');
                 if ridx == 1 && this.HasHeader
                     fprintf(outfile,'\t\t\\hline\\\\\n');
                 end
@@ -606,19 +669,29 @@ classdef PrintTable < handle
             end
         end
         
-        function printRow(this, row, outfile, sep)
+        function printRow(this, rowidx, outfile, sep)
             % Prints a table row using a given separator whilst inserting appropriate amounts
             % of tabs
+            row = this.data{rowidx};
+            isnum = this.numerics(rowidx,:);
             sl = length(sep);
             for i = 1:length(row)-1
                 str = row{i};
+                if this.fNumTexOut && isnum(i)
+                    str = ['$' str '$'];%#ok
+                end
                 fillstabs = floor((sl*(i~=1)+length(str))/this.TabCharLen);
                 tottabs = ceil((sl*(i~=1)+this.contlen(i))/this.TabCharLen);
                 fprintf(outfile,'%s%s',[str repmat(char(9),1,tottabs-fillstabs)],sep);
             end
+            str = row{end};
+            if this.fNumTexOut && isnum(end)
+                str = ['$' str '$'];
+            end
+            fprintf(outfile,'%s',str);
         end
         
-        function str = stringify(this, data)
+        function [str, num] = stringify(this, data)
             % Converts any datatype to a string
             
             % Format cell array given
@@ -689,6 +762,7 @@ classdef PrintTable < handle
                     end
                 end
             end
+            num = cellfun(@(arg)~isempty(str2num(arg)),str);%#ok
         end
         
         function str = implode(this, data, glue, format)%#ok
