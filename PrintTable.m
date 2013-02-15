@@ -119,9 +119,16 @@ classdef PrintTable < handle
 % - http://tex.stackexchange.com/questions/22173
 % - http://www.weinelt.de/latex/
 %
-% @new{0,7,dw,2013-02-14} Added a new property "TexOutputNumericValueDetection" that
-% automatically detects (via str2num) if a cell content can be interpreted as a numeric value
-% and wraps it in dollar characters when LaTeX output is set. This is switched on by default.
+% @new{0,7,dw,2013-02-14}
+% - Added a new property "TexMathModeDetection" that automatically detects (via str2num and \
+% containment) if a cell content can be interpreted as a latex math mode value and wraps it in
+% dollar characters when LaTeX output is set. This is switched on by default.
+% - New property "StripInsertedTabChars" which causes automatic stripping of tab characters
+% passed as arguments or created by sprintf formats or callbacks. This is switched on by
+% default.
+% - Added a short comment describing the applied settings to LaTeX output.
+% - Added a removeRow method.
+% - Smaller improvements for LaTex export & added test/demo cases
 %
 % @change{0,7,dw,2012-12-11} Improved automatic setting of TabCharLen default values.
 %
@@ -245,6 +252,14 @@ classdef PrintTable < handle
         %
         % @type logical @default true
         TightPDF = true;
+        
+        % Flag that determines if inserted tab characters are stripped from any string to
+        % preserve the correct display of the PrintTable.
+        %
+        % Affects both directly set strings and those produced by providing a format pattern.
+        %
+        % @type logical @default true
+        StripInsertedTabChars = true;
     end
     
     properties(Dependent)
@@ -259,7 +274,7 @@ classdef PrintTable < handle
         % Set to false to produce plain output of cell contents "as they are".
         %
         % @type logical @default true
-        TexOutputNumericValueDetection;
+        TexMathModeDetection;
     end
     
     properties(SetAccess=private)
@@ -270,15 +285,21 @@ classdef PrintTable < handle
         %
         % Used for TeX output.
         %
-        % See also: TexOutputNumericValueDetection
-        numerics;
+        % See also: TexMathModeDetection
+        mathmode;
         
         % Maximum content length for each colummn
         contlen;
+        
+        % Flag to maximize user convenience; this is set
+        % whenever a row adding resulted in a string containing a backslash, indicating that
+        % latex commands are used. If so, a warning is issued on tex export if
+        % TexMathModeDetection is switched off.
+        haslatexcommand = false;
     end
     
     properties(Access=private)
-        fNumTexOut = true;
+        fTexMMode = true;
     end
     
     methods
@@ -435,7 +456,7 @@ classdef PrintTable < handle
 %                 error('Input argument mismatch. If you specify a format string cell the number of arguments (=%d) to add must equal the number of format strings (=%d).',length(varargin)-1,length(varargin{end}));
             end
             if isempty(this.data)
-                [this.data{1}, this.numerics] = this.stringify(varargin);
+                [this.data{1}, this.mathmode] = this.stringify(varargin);
                 this.contlen = ones(1,length(this.data{1}));
             else
                 % Check new number of columns
@@ -447,10 +468,14 @@ classdef PrintTable < handle
                     error('Inconsistent row length. Current length: %d, passed: %d',length(this.data{1}),newlen);
                 end
                 % Add all values
-                [this.data{end+1}, this.numerics(end+1,:)] = this.stringify(varargin);
+                [this.data{end+1}, this.mathmode(end+1,:)] = this.stringify(varargin);
             end
             % Record content length while building the table
-            this.updateContentLength(length(this.data));
+            this.updateContentLengthAt(length(this.data));
+            % Check if a latex command might be contained
+            % (so far no re-computation is done on row removal)
+            this.haslatexcommand = this.haslatexcommand ...
+                || any(cellfun(@(s)~isempty(strfind(s,'\')),this.data{end}));
         end
         
         function clear(this)
@@ -458,6 +483,18 @@ classdef PrintTable < handle
             this.data = {};
             this.contlen = [];
             this.Caption = '';
+        end
+        
+        function removeRow(this, idx)
+            % Removes a row from the PrintTable
+            %
+            % Parameters:
+            % idx: The index of the row to remove @type integer
+            if idx < 1 || idx > length(this.data)
+                error('Invalid row index: %d',idx);
+            end
+            this.data(idx) = [];
+            this.updateContentLengths;
         end
         
         function transposed = ctranspose(this)
@@ -470,8 +507,8 @@ classdef PrintTable < handle
             transposed.contlen = cellfun(@(row)max(cellfun(@(el)length(el),row)),...
                 this.data);
             % Trigger correct content length guessing if need be
-            transposed.TexOutputNumericValueDetection = this.fNumTexOut;
-            transposed.numerics = this.numerics';
+            transposed.TexMathModeDetection = this.fTexMMode;
+            transposed.mathmode = this.mathmode';
         end
         
         function copy = clone(this)
@@ -484,8 +521,10 @@ classdef PrintTable < handle
             copy.TightPDF = this.TightPDF;
             copy.data = this.data;
             copy.contlen = this.contlen;
-            copy.numerics = this.numerics;
-            copy.fNumTexOut = this.fNumTexOut;
+            copy.mathmode = this.mathmode;
+            copy.fTexMMode = this.fTexMMode;
+            copy.haslatexcommand = this.haslatexcommand;
+            copy.StripInsertedTabChars = this.StripInsertedTabChars;
         end
         
         function set.ColSep(this, value)
@@ -494,7 +533,10 @@ classdef PrintTable < handle
             end
             this.ColSep = value;
         end
-        
+    end
+    
+    %% Getter & Setter
+    methods
         function set.HasHeader(this, value)
             if ~islogical(value) || ~isscalar(value)
                 error('HasHeader must be a logical scalar.');
@@ -540,32 +582,37 @@ classdef PrintTable < handle
             end
         end
         
-        function set.TexOutputNumericValueDetection(this, value)
-            if this.fNumTexOut ~= value
+        function set.TexMathModeDetection(this, value)
+            if this.fTexMMode ~= value
                 if ~islogical(value) || ~isscalar(value)
-                    error('TexOutputNumericValueDetection must be true or false.');
+                    error('TexMathModeDetection must be true or false.');
                 end
-                this.fNumTexOut = value;
-                if ~isempty(this.data)
-                    this.contlen = ones(1,length(this.data{1}));
-                    for idx = 1:length(this.data)
-                        this.updateContentLength(idx);
-                    end
-                end
+                this.fTexMMode = value;
+                this.updateContentLengths;
             end
         end
         
-        function value = get.TexOutputNumericValueDetection(this)
-            value = this.fNumTexOut;
+        function value = get.TexMathModeDetection(this)
+            value = this.fTexMMode;
         end
     end
     
+    %% Internal helpers
     methods(Access=private)
         
-        function updateContentLength(this, idx)
-            fun = @(str,num)length(str) + 2*num; %2 characters for $ tex environment
-            isnum = num2cell(this.numerics(idx,:));
-            this.contlen = max([this.contlen; cellfun(fun,this.data{idx},isnum)]);
+        function updateContentLengthAt(this, idx)
+            fun = @(str,num)length(str) + 2*num; %2 characters for local $ tex environment
+            ismm = num2cell(this.mathmode(idx,:));
+            this.contlen = max([this.contlen; cellfun(fun,this.data{idx},ismm)]);
+        end
+        
+        function updateContentLengths(this)
+            if ~isempty(this.data)
+                this.contlen = ones(1,length(this.data{1}));
+                for idx = 1:length(this.data)
+                    this.updateContentLengthAt(idx);
+                end
+            end
         end
         
         function printPlain(this, outfile)
@@ -589,6 +636,11 @@ classdef PrintTable < handle
         
         function printTex(this, outfile)
             % Prints the table in LaTeX format
+            
+            if ~this.TexMathModeDetection && this.haslatexcommand
+                warning('PrintTable:TexExport',...
+                    'No TexMathModeDetection enabled but LaTeX commands have been detected. Export might produce invalid LaTeX code.');
+            end
 
             % Add comment
             if ~isempty(this.Caption)
@@ -596,6 +648,10 @@ classdef PrintTable < handle
             else
                 fprintf(outfile,'%% PrintTable generated on %s\n',datestr(clock));
             end
+            % Add an informative comment to make the user aware of it's options :-)
+            fprintf(outfile,'%% Export settings: TexMathModeDetection %d, HasHeader %d, HasRowHeader %d, StripInsertedTabChars %d, IsPDF %d, TightPDF %d\n',...
+                    this.TexMathModeDetection,this.HasHeader,this.HasRowHeader,this.StripInsertedTabChars,...
+                    strcmp(this.Format,'pdf'),this.TightPDF);
             cols = 0;
             if ~isempty(this.data)
                 cols = length(this.data{1});
@@ -639,7 +695,7 @@ classdef PrintTable < handle
                 if ~isempty(this.Caption)
                     cap = ['''' this.Caption ''''];
                 end
-                fprintf('Exporting %s to PDF using "%s"... ',cap,msg(1:strfind(msg,sprintf('\n'))-1));
+                fprintf('Exporting %s to PDF using "%s"...\n',cap,msg(1:strfind(msg,sprintf('\n'))-1));
             end
 
             texfile = fullfile(path, [fname '.tex']);
@@ -660,24 +716,26 @@ classdef PrintTable < handle
             end
             fprintf(fid,'\\end{document}');
             fclose(fid);
-            [status, msg] = system(sprintf('pdflatex -interaction=nonstopmode -output-directory="%s" %s',path,texfile));
-            if status ~= 0
-                error('pdfLaTeX finished with errors:\n%s',msg);
+            [status, msg] = system(sprintf('pdflatex -interaction=nonstopmode -output-directory="%s" %s',path,texfile));%#ok
+            if 0 ~= status
+                delete(fullfile(path, [fname '.pdf']));
+                fprintf(2,'PDF export failed, pdflatex finished with errors. See the <a href="matlab:edit(''%s'')">LaTeX logfile</a> for details.\n',fullfile(path, [fname '.log']));
             else
-                %delete(texfile,fullfile(path, [fname '.aux']),fullfile(path, [fname '.log']));
+                delete(fullfile(path, [fname '.log']));
                 fprintf('done!\n');
             end
+            delete(texfile,fullfile(path, [fname '.aux']));
         end
         
         function printRow(this, rowidx, outfile, sep)
             % Prints a table row using a given separator whilst inserting appropriate amounts
             % of tabs
             row = this.data{rowidx};
-            isnum = this.numerics(rowidx,:);
+            ismm = this.mathmode(rowidx,:);
             sl = length(sep);
             for i = 1:length(row)-1
                 str = row{i};
-                if this.fNumTexOut && isnum(i)
+                if this.fTexMMode && ismm(i)
                     str = ['$' str '$'];%#ok
                 end
                 fillstabs = floor((sl*(i~=1)+length(str))/this.TabCharLen);
@@ -685,14 +743,14 @@ classdef PrintTable < handle
                 fprintf(outfile,'%s%s',[str repmat(char(9),1,tottabs-fillstabs)],sep);
             end
             str = row{end};
-            if this.fNumTexOut && isnum(end)
+            if this.fTexMMode && ismm(end)
                 str = ['$' str '$'];
             end
             fprintf(outfile,'%s',str);
         end
         
-        function [str, num] = stringify(this, data)
-            % Converts any datatype to a string
+        function [str, ismm] = stringify(this, data)
+            % Converts any datatype to a string in a suitable way for table display
             
             % Format cell array given
             if iscell(data{end})
@@ -713,11 +771,22 @@ classdef PrintTable < handle
                     data{end} = ['%s' data{end}(:)'];
                 end
                 str = cell(1,length(data)-1);
+                % Apply sprintf pattern to each element
                 for i=1:length(data)-1
                     if isa(data{end}{i},'function_handle')
-                        str{i} = data{end}{i}(data{i});
+                        if nargin(data{end}{i}) > 1
+                            tmpstr = data{end}{i}(data{i},i);
+                        else
+                            tmpstr = data{end}{i}(data{i});
+                        end
                     else
-                        str{i} = sprintf(data{end}{i},data{i});
+                        tmpstr = sprintf(data{end}{i},data{i});
+                    end
+                    % Strip tab chars if set
+                    if this.StripInsertedTabChars
+                        str{i} = strrep(tmpstr,char(9),'');
+                    else
+                        str{i} = tmpstr;
                     end
                 end
             else % convert to strings if no specific format is given
@@ -725,7 +794,12 @@ classdef PrintTable < handle
                 for i=1:length(data)
                     el = data{i};
                     if isa(el,'char')
-                        str{i} = el;
+                        % Use char array directly and strip tab characters if desired
+                        if this.StripInsertedTabChars
+                            str{i} = strrep(el,char(9),'');
+                        else
+                            str{i} = el;
+                        end
                     elseif isinteger(el)
                         if numel(el) > 1
                             str{i} = ['[' this.implode(el(:),', ','%d') ']'];
@@ -762,7 +836,10 @@ classdef PrintTable < handle
                     end
                 end
             end
-            num = cellfun(@(arg)~isempty(str2num(arg)),str);%#ok
+            % Detect if any of the cell contents
+            fun = @(arg)arg(1) ~= '$' && arg(end) ~= '$' ...
+                        && (~isempty(str2num(arg)) || ~isempty(strfind(arg,'\')));%#ok
+            ismm = cellfun(fun,str);
         end
         
         function str = implode(this, data, glue, format)%#ok
@@ -793,34 +870,71 @@ classdef PrintTable < handle
         end
     end
     
+    %% Tests
     methods(Static)
-        function t = test_PrintTable
+        function [res, t] = test_PrintTable
             % A simple test for PrintTable
             t = PrintTable;
             t.Caption = 'This is my PrintTable test.';
             t.addRow('A','B','C');
-            t.addRow('123','456','789');
-            t.addRow('1234567','12345','789');
-            t.addRow('1234567','123456','789');
-            t.addRow('1234567','1234567','789');
+            t.addRow('123',456E10,'789');
+            t.addRow(1234567,'12345','789');
+            t.addRow('1234567',123456,'789');
+            t.addRow('34','\sin(x)+4','somestring');
             t.addRow('foo','bar',datestr(clock));
             t.addRow(123.45678,pi,789,{'%2.3f','$%4.4g$','decimal: %d'});
-            t.addRow('12345678','123','789');
-            t.addRow('123456789','123','789');
+            
+            % If HasHeader is set, the format args can be omitted for the first column.
+            t.HasRowHeader = true;
+            t.addRow(123.45678,pi,789,{'$%4.4g$','decimal: %d'});
+            t.HasRowHeader = false;
+            
+            t.addRow('12345678','\latexcommand{foo}+5','789');
+            t.addRow('yet ','123','789');
             t.addRow(123.45678,pi,789,{'%2.3f',@(v)sprintf('functioned pi=%g!',v-3),'decimal: %d'});
-            t.addRow('attention: inserting tabs per format','\t','destroys the table tabbing',{'%s','1\t2%s3\t','%s'});
+            t.addRow(2,2,2,{@(v,colidx)sprintf('callback using column index: %d!',v^colidx)});
+            t.addRow('single',pi,'fun with colidx',{'%s',@(v,colidx)sprintf('value at column %d: %g!',colidx,v),'%s'});
+            t.addRow('next col with tabs',char(9),'StripInsertedTabChars on',{'%s','>\t>%s>\t>','%s'});
+            
+            fprintf(2,'test_PrintTable: Plain text display:\n');
             t.display;
             
+            fprintf(2,'test_PrintTable: Plain text display with no tab stripping:\n');
+            t.StripInsertedTabChars = false;
+            t.addRow('next col with tabs',char(9),'StripInsertedTabChars off (destroys layout)',{'%s','>\t>%s>\t>','%s'});
+            t.display;
+            t.removeRow(t.NumRows);
+            
+            fprintf(2,'test_PrintTable: Plain text display with header:\n');
+            t.HasHeader = true;
+            t.display;
+            
+            fprintf(2,'test_PrintTable: LaTeX display:\n');
+            t.HasHeader = false;
             t.Format = 'tex';
             t.print;
+            
+            fprintf(2,'test_PrintTable: LaTeX display with header:\n');
             t.HasHeader = true;
             t.print;
+            t.HasHeader = false;
             
+            fprintf(2,'test_PrintTable: LaTeX display and no TexMathModeDetection:\n');
+            t.TexMathModeDetection = false;
+            t.print;
+            t.TexMathModeDetection = true;
+            
+            fprintf(2,'test_PrintTable: LaTeX display of transposed:\n');
             tt = t';
             tt.print;
+            
+            fprintf(2,'test_PrintTable: Plain text display of transposed:\n');
+            tt.Format = 'txt';
+            tt.print;
+            res = true;
         end
         
-        function t = test_PrintTable_RowHeader_Caption
+        function [res, t] = test_PrintTable_RowHeader_Caption
             % A simple test for PrintTable
             t = PrintTable('This is PrintTable RowHeader Caption test, created on %s',datestr(now));
             t.HasRowHeader = true;
@@ -832,40 +946,78 @@ classdef PrintTable < handle
             t.addRow('nofmt-header',456,pi,{'%d','%f'});
             t.addRow('1234567','12345','789');
             t.addRow('foo','bar',datestr(clock));
-            t.addRow(123.45678,pi,789,{'%2.3f','$%4.4g$','decimal: %d'});
+            t.addRow(123.45678,pi,789,{'%2.3f','%4.4g','decimal: %d'});
             t.addRow(12345678,'123','789');
             t.addRow(12345.6789,'123','789');
             t.display;
             
+            fprintf(2,'test_PrintTable_RowHeader_Caption: Tex-Format:\n');
             t.Format = 'tex';
             t.print;
+            
+            fprintf(2,'test_PrintTable_RowHeader_Caption: Tex-Format with Row Header:\n');
             t.HasHeader = true;
             t.print;
-            t.saveToFile('test_PrintTable_RowHeader_Caption.pdf');
+            res = true;
         end
         
-         function t = test_PrintTable_LaTeX_Export
+        function [res, t] = test_PrintTable_LaTeX_Export
             % A simple test for PrintTable
-            t = PrintTable('LaTeX PrintTable demo, %s',datestr(now));
+            t = PrintTable('LaTeX/PDF export demo, %s',datestr(now));
             t.HasRowHeader = true;
             t.HasHeader = true;
             t.addRow('A','B','C');
-            t.addRow('Data 1',456,789,{'$%d$'});
+            t.addRow('Data 1',456,789,{'%d'});
             t.addRow(1234.345,456,789,{'$%2.2E$','$%d$','$%d$'});
-            t.addRow('header-expl-fmt',456,pi,{'%s','$%d$','$%2.2f$'});
+            t.addRow('header-expl-fmt',456,pi,{'%s','%d','%2.2f'});
             t.addRow('1234567','12345','789');
             x = 4;
-            t.addRow('x=4','\sin(x)',sin(x),{'$%s$','%f'});
+            t.addRow('x=4','\sin(x)',sin(x),{'%s','%f'});
+            % Explicit wrapping directly or with $$ per format string
+            t.addRow('x=4','25 (5*5)=',5*5,{'$%s$','%d'});
+            % (have HasRowHeader, thus the first format string is not necessary (but yet
+            % possible to define))
             t.addRow('$x=4,\alpha=.2$','\alpha\exp(x)\cos(x)',.2*exp(x)*cos(x),{'$%s$','%f'});
             t.display;
             
             % LaTeX
-            t.saveToFile('mytable_tex.tex',true);
+            t.saveToFile('myLaTeXexportedPrintTable.tex',true);
+            
             % Tight PDF
             t.saveToFile('mytable_tightpdf.pdf',true);
+            
             % Whole page PDF
             t.TightPDF = false;
+            t.TexMathModeDetection = true;
             t.saveToFile('mytable_fullpage.pdf',true);
+            res = true;
+        end
+        
+        function [res, t] = test_PrintTable_Failed_LaTeX_Export
+            t = PrintTable('LaTeX/PDF export demo (THIS MUST FAIL!), %s',datestr(now));
+            t.HasRowHeader = true;
+            t.HasHeader = true;
+            t.TexMathModeDetection = false;
+            t.addRow('A','B','C');
+            t.addRow('Data 1',456,789,{'%d'});
+            t.addRow(1234.345,456,789,{'$%2.2E$','$%d$','$%d$'});
+            t.addRow('header-expl-fmt',456,pi,{'%s','%d','%2.2f'});
+            t.addRow(1234567,'12345',45.3463E-4);
+            x = 4;
+            % This is the offending line
+            t.addRow('x=4','\sin(x)',sin(x),{'%s','%f'});
+            % Explicit wrapping directly or with $$ per format string
+            t.addRow('x=4','25 (5*5)=',5*5,{'$%s$','%d'});
+            t.addRow('$x=4,\alpha=.2$','\alpha\exp(x)\cos(x)',.2*exp(x)*cos(x),{'$%s$','%f'});
+            t.display;
+            try
+                t.saveToFile('mytable_tightpdf_nodetection.pdf',true);
+            catch ME
+                fprintf(2,'TEST FAILED AS EXPECTED, WARNING HAS BEEN ISSUED. ALL GOOD.\n');
+                res = true;
+                return;
+            end
+            res = false;
         end
     end
     
