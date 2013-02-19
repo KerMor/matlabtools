@@ -119,6 +119,13 @@ classdef PrintTable < handle
 % - http://tex.stackexchange.com/questions/22173
 % - http://www.weinelt.de/latex/
 %
+% @change{0,7,dw,2013-02-19}
+% - Bugfix: Accidentally also wrapped in $$ for plain text output by default.
+%
+% @change{0,7,dw,2013-02-15}
+% - Bugfix for empty cell string
+% - LaTeX alignment for first column is "r" if HasRowHeader is used
+%
 % @new{0,7,dw,2013-02-14}
 % - Added a new property "TexMathModeDetection" that automatically detects (via str2num and \
 % containment) if a cell content can be interpreted as a latex math mode value and wraps it in
@@ -665,7 +672,12 @@ classdef PrintTable < handle
                 % above the table (for the given time&resources :-))
                 %fprintf(outfile,'Table: %s\n',this.Caption);
             end
-            fprintf(outfile,'\\begin{tabular}{%s}\n',repmat('l',1,cols));
+            if this.HasRowHeader
+                aligns = ['r' repmat('l',1,cols-1)];
+            else
+                aligns = repmat('l',1,cols);
+            end
+            fprintf(outfile,'\\begin{tabular}{%s}\n',aligns);
             % Print all rows
             for ridx = 1:length(this.data)
                 fprintf(outfile,'\t\t');
@@ -731,11 +743,14 @@ classdef PrintTable < handle
             % Prints a table row using a given separator whilst inserting appropriate amounts
             % of tabs
             row = this.data{rowidx};
+            % Check if mathmode has been determined
             ismm = this.mathmode(rowidx,:);
+            % Check if we are producing tex-based output
+            istex = any(strcmp(this.Format,{'tex', 'pdf'}));
             sl = length(sep);
             for i = 1:length(row)-1
                 str = row{i};
-                if this.fTexMMode && ismm(i)
+                if istex && this.fTexMMode && ismm(i)
                     str = ['$' str '$'];%#ok
                 end
                 fillstabs = floor((sl*(i~=1)+length(str))/this.TabCharLen);
@@ -743,7 +758,7 @@ classdef PrintTable < handle
                 fprintf(outfile,'%s%s',[str repmat(char(9),1,tottabs-fillstabs)],sep);
             end
             str = row{end};
-            if this.fTexMMode && ismm(end)
+            if istex && this.fTexMMode && ismm(end)
                 str = ['$' str '$'];
             end
             fprintf(outfile,'%s',str);
@@ -837,7 +852,7 @@ classdef PrintTable < handle
                 end
             end
             % Detect if any of the cell contents
-            fun = @(arg)arg(1) ~= '$' && arg(end) ~= '$' ...
+            fun = @(arg)~isempty(arg) && arg(1) ~= '$' && arg(end) ~= '$' ...
                         && (~isempty(str2num(arg)) || ~isempty(strfind(arg,'\')));%#ok
             ismm = cellfun(fun,str);
         end

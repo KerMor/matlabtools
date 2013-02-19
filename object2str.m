@@ -114,8 +114,10 @@ str = recursive2str(obj, maxdepth, 0, {});
                 str = [str '\n'];
             end
         end
-        % Take away the last \n
-        str = str(1:end-2);
+        % Take away the last \n for inner recursive calls
+        if depth < maxdepth
+            str = str(1:end-2);
+        end
 
         % Format!
         str = sprintf(str);
