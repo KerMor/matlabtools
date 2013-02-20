@@ -119,6 +119,9 @@ classdef PrintTable < handle
 % - http://tex.stackexchange.com/questions/22173
 % - http://www.weinelt.de/latex/
 %
+% @new{0,7,dw,2013-02-19} Added a new method "append" to join data from a second table into the
+% current one. Specific columns may be given.
+%
 % @change{0,7,dw,2013-02-19}
 % - Bugfix: Accidentally also wrapped in $$ for plain text output by default.
 %
@@ -532,6 +535,47 @@ classdef PrintTable < handle
             copy.fTexMMode = this.fTexMMode;
             copy.haslatexcommand = this.haslatexcommand;
             copy.StripInsertedTabChars = this.StripInsertedTabChars;
+        end
+        
+        function joined = append(this, table, columns)
+            % Appends the cell contents from another table to this table.
+            %
+            % Parameters:
+            % table: The other table @type PrintTable
+            % columns: The column indices to transfer. @type rowvec<integer> @default all
+            if isempty(this.data)
+                error('No table rows exists to append to. Why would you want to do that?');
+            end
+            
+            joined = this.clone;
+            % Check data compatibility
+            if ~isa(table,'PrintTable')
+                error('Argument must be a PrintTable instance');
+            end
+            if table.NumRows == 0
+                return;
+            end
+            if nargin < 3
+                columns = 1:length(table.data{1});
+            end
+            if length(this.data{1}) ~= length(columns)
+                error('Invalid column number: Have %d but want to append %d',length(this.data{1}),length(columns));
+            end
+            % Augment data
+            start = 1;
+            if table.HasHeader
+                start = 2;
+            end
+            for k=start:length(table.data)
+                joined.data{end+1} = table.data{k}(columns);
+            end
+            joined.contlen = max(this.contlen,table.contlen(columns));
+            joined.mathmode = [this.mathmode; table.mathmode(:,columns)];
+            joined.haslatexcommand = this.haslatexcommand || table.haslatexcommand;
+            % Transfer Caption if not set locally
+            if ~isempty(joined.Caption)
+                joined.Caption = table.Caption;
+            end
         end
         
         function set.ColSep(this, value)
@@ -949,9 +993,9 @@ classdef PrintTable < handle
             res = true;
         end
         
-        function [res, t] = test_PrintTable_RowHeader_Caption
+        function [res, t] = test_PrintTable_Misc
             % A simple test for PrintTable
-            t = PrintTable('This is PrintTable RowHeader Caption test, created on %s',datestr(now));
+            t = PrintTable('This is PrintTable Misc Features test, created on %s',datestr(now));
             t.HasRowHeader = true;
             t.HasHeader = true;
             t.addRow('A','B','C');
@@ -966,13 +1010,41 @@ classdef PrintTable < handle
             t.addRow(12345.6789,'123','789');
             t.display;
             
-            fprintf(2,'test_PrintTable_RowHeader_Caption: Tex-Format:\n');
+            fprintf(2,'test_PrintTable_Misc: Tex-Format:\n');
             t.Format = 'tex';
             t.print;
             
-            fprintf(2,'test_PrintTable_RowHeader_Caption: Tex-Format with Row Header:\n');
+            fprintf(2,'test_PrintTable_Misc: Tex-Format with Row Header:\n');
             t.HasHeader = true;
             t.print;
+            
+            fprintf(2,'test_PrintTable_Misc: Self-Appended:\n');
+            t.Format = 'txt';
+            ta = t.append(t);
+            ta.display;
+            
+            t2 = PrintTable('dummy');
+            t2.addRow('A','B','C','D','E');
+            t2.addRow('header1',456,789,1,34,{'%d'});
+            t2.addRow(12345.6789,'123','789','foo','bar');
+            t2.addRow('header2',4656,35789,351,4);
+            
+            fprintf(2,'test_PrintTable_Misc: Test table to append:\n');
+            t2.display;
+            
+            fprintf(2,'test_PrintTable_Misc: Appending some test table columns (with header):\n');
+            ta = t.append(t2,[1 3 5]);
+            ta.display;
+            
+            fprintf(2,'test_PrintTable_Misc: Appending some test table columns (without header):\n');
+            t2.HasHeader = true;
+            ta = t.append(t2,[4 2 1]);
+            ta.display;
+            
+            % Empty table append test
+            t2.clear;
+            t.append(t2);
+            
             res = true;
         end
         
