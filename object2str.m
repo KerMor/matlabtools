@@ -39,12 +39,13 @@ if nargin < 2
 elseif ~isnumeric(maxdepth) || ~isreal(maxdepth)
     error('maxdepth has to be a real value/integer.');
 end
-str = recursive2str(obj, maxdepth, 0, {});
+[str, bytes] = recursive2str(obj, maxdepth, 0, {});
 
-    function str = recursive2str(obj, depth, numtabs, done)
+    function [str, bytes] = recursive2str(obj, depth, numtabs, done)
         % Internal recursion.
         str = '';
         if depth == 0
+            bytes = 0;
             return;
         end
         done{end+1} = obj;
@@ -55,22 +56,28 @@ str = recursive2str(obj, maxdepth, 0, {});
             name = mc.Name;
         end
         if ~isempty(str)
-            str = [str ': ' name '\n'];
+            str = [str '%s: ' name '\n'];
         else
-            str = [name ':\n'];
+            str = [name '%s:\n'];
         end
         % get string cell of names and sort alphabetically
         names = cellfun(@(mp)mp.Name,mc.Properties,'UniformOutput',false);
         [~, sortedidx] = sort(names);
+        bytes = 0;
         for n = 1:length(sortedidx)
             idx = sortedidx(n);
             p = mc.Properties{idx};
+            addbytes = 0;
             if strcmp(p.GetAccess,'public')
                 str = [str repmat('\t',1,numtabs) '.']; %#ok<*AGROW>
                 pobj = obj.(p.Name);
                 if ~isempty(pobj) && ~any(cellfun(@(el)isequal(pobj,el),done))
+                    % Pre-compute addbytes and only override if pobj is object itself
+                    tmp = whos('pobj');
+                    addbytes = tmp.bytes;
                     if isobject(pobj)
-                        str = [str p.Name ' - ' recursive2str(pobj, depth-1, numtabs+1, done)];
+                        [recstr, addbytes] = recursive2str(pobj, depth-1, numtabs+1, done);
+                        str = [str p.Name ' - ' recstr];
                     elseif isnumeric(pobj)
                         if numel(pobj) > 20
                             str = [str p.Name ': [' num2str(size(pobj)) '] ' class(pobj)];
@@ -113,13 +120,23 @@ str = recursive2str(obj, maxdepth, 0, {});
                 end
                 str = [str '\n'];
             end
+            bytes = bytes + addbytes;
         end
+        
         % Take away the last \n for inner recursive calls
         if depth < maxdepth
             str = str(1:end-2);
         end
 
         % Format!
-        str = sprintf(str);
+        % Add byte information
+        lbl = {'G','M','k'};
+        hr = bytes ./ [1024^3 1024^2 1024];
+        idx = find(hr > 1,1);
+        sizestr = '';
+        if ~isempty(idx)
+             sizestr = sprintf(' (%.5g%s)',hr(idx),lbl{idx});
+        end
+        str = sprintf(str,sizestr);
     end
 end
