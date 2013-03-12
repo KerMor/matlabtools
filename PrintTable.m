@@ -488,6 +488,16 @@ classdef PrintTable < handle
                 || any(cellfun(@(s)~isempty(strfind(s,'\')),this.data{end}));
         end
         
+%         function insertRow(this, pos, varargin)
+%             this.addRow(varargin{:});
+%             tmp = this.data{pos};
+%             this.data{pos} = this.data{end};
+%             this.data{end} = tmp;
+%             tmp = this.mathmode(pos,:);
+%             this.mathmode(pos,:) = this.mathmode(end,:);
+%             this.mathmode(end,:) = tmp;
+%         end
+        
         function clear(this)
             % Clears the current PrintTable contents and caption.
             this.data = {};
