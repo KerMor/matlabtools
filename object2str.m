@@ -39,6 +39,7 @@ if nargin < 2
 elseif ~isnumeric(maxdepth) || ~isreal(maxdepth)
     error('maxdepth has to be a real value/integer.');
 end
+sizelbl = {'G','M','k','b'};
 [str, bytes] = recursive2str(obj, maxdepth, 0, {});
 
     function [str, bytes] = recursive2str(obj, depth, numtabs, done)
@@ -63,7 +64,7 @@ end
         % get string cell of names and sort alphabetically
         names = cellfun(@(mp)mp.Name,mc.Properties,'UniformOutput',false);
         [~, sortedidx] = sort(names);
-        bytes = 0;
+        bytes = 0; subbytes = 0;
         for n = 1:length(sortedidx)
             idx = sortedidx(n);
             p = mc.Properties{idx};
@@ -77,10 +78,19 @@ end
                     addbytes = tmp.bytes;
                     if isobject(pobj)
                         [recstr, addbytes] = recursive2str(pobj, depth-1, numtabs+1, done);
+                        subbytes = subbytes + addbytes;
                         str = [str p.Name ' - ' recstr];
                     elseif isnumeric(pobj)
                         if numel(pobj) > 20
-                            str = [str p.Name ': [' num2str(size(pobj)) '] ' class(pobj)];
+                            sizestr = getSizeStr(addbytes);
+                            if ~isempty(sizestr)
+                                sizestr = [' (' sizestr ')'];
+                            end
+                            spar = '';
+                            if issparse(pobj)
+                                spar = 'sparse ';
+                            end
+                            str = [str p.Name ': [' num2str(size(pobj)) '] ' spar class(pobj) sizestr];
                         else
                             pobj = reshape(pobj,1,[]);
                             str = [str p.Name ': ' num2str(pobj)];
@@ -130,13 +140,21 @@ end
 
         % Format!
         % Add byte information
-        lbl = {'G','M','k'};
-        hr = bytes ./ [1024^3 1024^2 1024];
-        idx = find(hr > 1,1);
-        sizestr = '';
-        if ~isempty(idx)
-             sizestr = sprintf(' (%.5g%s)',hr(idx),lbl{idx});
+        if subbytes > 0
+            sizestr = sprintf(' (self:%s, childs:%s, total:%s)',...
+                getSizeStr(bytes-subbytes),getSizeStr(subbytes),getSizeStr(bytes));
+        else
+            sizestr = sprintf(' (%s)',getSizeStr(bytes));
         end
         str = sprintf(str,sizestr);
+        
+        function res = getSizeStr(bytes)
+            hr = bytes ./ [1024^3 1024^2 1024 1];
+            pos = find(hr > 1,1);
+            res = '';
+            if ~isempty(pos)
+                res = sprintf('%.5g%s',hr(pos),sizelbl{pos});
+            end
+        end
     end
 end
