@@ -497,6 +497,7 @@ classdef PlotManager < handle
         function resetCount(this)
             % Resets the current axes handle count so that subsequent calls to "nextPlot" will
             % result re-returning the current subplot's axes
+            this.finishCurrent;
             this.cnt = 0;
         end
         
