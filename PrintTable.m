@@ -119,6 +119,10 @@ classdef PrintTable < handle
 % - http://tex.stackexchange.com/questions/22173
 % - http://www.weinelt.de/latex/
 %
+% @change{0,7,dw,2013-04-05}
+% - Automatically stripping newline characters from any strings
+% - Added some more verbose output about table creation to `\LaTeX` output
+%
 % @new{0,7,dw,2013-02-19} Added a new method "append" to join data from a second table into the
 % current one. Specific columns may be given.
 %
@@ -136,7 +140,7 @@ classdef PrintTable < handle
 % - New property "StripInsertedTabChars" which causes automatic stripping of tab characters
 % passed as arguments or created by sprintf formats or callbacks. This is switched on by
 % default.
-% - Added a short comment describing the applied settings to LaTeX output.
+% - Added a short comment describing the applied settings to `\LaTeX` output.
 % - Added a removeRow method.
 % - Smaller improvements for LaTex export & added test/demo cases
 %
@@ -703,12 +707,14 @@ classdef PrintTable < handle
                     'No TexMathModeDetection enabled but LaTeX commands have been detected. Export might produce invalid LaTeX code.');
             end
 
-            % Add comment
+            % Add verbose comment
             if ~isempty(this.Caption)
-                fprintf(outfile,'%% PrintTable "%s" generated on %s\n',this.Caption,datestr(clock));
+                fprintf(outfile,'%% PrintTable "%s" generated on %s\n',this.Caption,datestr(clock),where);
             else
                 fprintf(outfile,'%% PrintTable generated on %s\n',datestr(clock));
             end
+            d = dbstack;
+            fprintf(outfile,'%% Created in %s:%d at %s\n',d(4).name,d(4).line,which(d(4).file));
             % Add an informative comment to make the user aware of it's options :-)
             fprintf(outfile,'%% Export settings: TexMathModeDetection %d, HasHeader %d, HasRowHeader %d, StripInsertedTabChars %d, IsPDF %d, TightPDF %d\n',...
                     this.TexMathModeDetection,this.HasHeader,this.HasRowHeader,this.StripInsertedTabChars,...
@@ -851,6 +857,7 @@ classdef PrintTable < handle
                     else
                         tmpstr = sprintf(data{end}{i},data{i});
                     end
+                    tmpstr = strrep(tmpstr,char(10),'');
                     % Strip tab chars if set
                     if this.StripInsertedTabChars
                         str{i} = strrep(tmpstr,char(9),'');
@@ -863,6 +870,7 @@ classdef PrintTable < handle
                 for i=1:length(data)
                     el = data{i};
                     if isa(el,'char')
+                        el = strrep(el,char(10),'');
                         % Use char array directly and strip tab characters if desired
                         if this.StripInsertedTabChars
                             str{i} = strrep(el,char(9),'');
