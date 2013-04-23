@@ -119,6 +119,8 @@ classdef PrintTable < handle
 % - http://tex.stackexchange.com/questions/22173
 % - http://www.weinelt.de/latex/
 %
+% @change{0,7,dw,2013-04-09} Added some table cell spacing by default (`\LaTeX` 'arraystretch')
+%
 % @change{0,7,dw,2013-04-05}
 % - Automatically stripping newline characters from any strings
 % - Added some more verbose output about table creation to `\LaTeX` output
@@ -726,7 +728,7 @@ classdef PrintTable < handle
             % Only add surroundings for pure tex output or full-sized PDF
             % generation
             if strcmp(this.Format,'tex') || ~this.TightPDF
-                fprintf(outfile,'\\begin{table}[!hb]\n\t\\centering\n\t');
+                fprintf(outfile,'\\begin{table}[!hb]\n\t\\centering\n\t\\def\\arraystretch{1.3}\n\t');
             elseif ~isempty(this.Caption)
                 % Enable this if you want, but i found no straight way of putting the caption
                 % above the table (for the given time&resources :-))

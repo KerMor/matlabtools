@@ -515,6 +515,23 @@ classdef PlotManager < handle
                 end
             end
         end
+        
+        function matchPlotAxes(~, ax_handles, varargin)
+            ip = inputParser;
+            ip.addParamValue('Axis','YLim',@(arg)(ischar(arg)) && any(strcmp(arg,{'XLim','YLim','ZLim'})));
+            %ip.addParamValue('Selection',1:length(this.Figures),@isvector);
+            ip.parse(varargin{:});
+            res = ip.Results;
+            lim = get(ax_handles(1),res.Axis);
+            for k = 2:numel(ax_handles)
+                tmp = get(ax_handles(k),res.Axis);
+                lim(1) = min(lim(1),tmp(1));
+                lim(2) = max(lim(2),tmp(2));
+            end
+            for k = 1:numel(ax_handles)
+                set(ax_handles, res.Axis, lim);
+            end
+        end
     end
     
     %% Getter & Setter
