@@ -711,7 +711,7 @@ classdef PrintTable < handle
 
             % Add verbose comment
             if ~isempty(this.Caption)
-                fprintf(outfile,'%% PrintTable "%s" generated on %s\n',this.Caption,datestr(clock),where);
+                fprintf(outfile,'%% PrintTable "%s" generated on %s\n',this.Caption,datestr(clock));
             else
                 fprintf(outfile,'%% PrintTable generated on %s\n',datestr(clock));
             end
