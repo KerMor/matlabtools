@@ -915,9 +915,9 @@ classdef PrintTable < handle
                     end
                 end
             end
-            % Detect if any of the cell contents
+            % Detect if any of the cell contents are numerical values
             fun = @(arg)~isempty(arg) && arg(1) ~= '$' && arg(end) ~= '$' ...
-                        && (~isempty(str2num(arg)) || ~isempty(strfind(arg,'\')));%#ok
+                        && (~isnan(str2double(arg)) || ~isempty(strfind(arg,'\')));
             ismm = cellfun(fun,str);
         end
         
