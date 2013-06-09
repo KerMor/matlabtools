@@ -716,7 +716,8 @@ classdef PrintTable < handle
                 fprintf(outfile,'%% PrintTable generated on %s\n',datestr(clock));
             end
             d = dbstack;
-            fprintf(outfile,'%% Created in %s:%d at %s\n',d(4).name,d(4).line,which(d(4).file));
+            d = d(find(~strcmp({d(:).file},'PrintTable.m'),1));
+            fprintf(outfile,'%% Created in %s:%d at %s\n',d.name,d.line,which(d.file));
             % Add an informative comment to make the user aware of it's options :-)
             fprintf(outfile,'%% Export settings: TexMathModeDetection %d, HasHeader %d, HasRowHeader %d, StripInsertedTabChars %d, IsPDF %d, TightPDF %d\n',...
                     this.TexMathModeDetection,this.HasHeader,this.HasRowHeader,this.StripInsertedTabChars,...

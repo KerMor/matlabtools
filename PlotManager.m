@@ -139,17 +139,20 @@ classdef PlotManager < handle
         % @type cell<char> @default {'jpg'}
         SaveFormats = {'jpg'};
         
-        % An integer number to enforce a minimum number of tickmarks on the y axis.
+        % An integer number to enforce a minimum number of tickmarks on the respective axes.
         % 
+        % Set this property to a three element vector containing the numbers of how many tick
+        % marks are desired for the X,Y and Z axis.
+        %
         % When a plot is finished (i.e. nextPlot or done is called), it is checked if enough
         % tickmarks are present. If not, the given number of tickmarks is inserted, according
-        % to the current YLim and YScale property.
-        % Set to [] to let MatLab control how many tickmarks are used.
+        % to the current -Lim and -Scale property.
+        % Set to zero to let MatLab control how many tickmarks are used for the respective axis.
         %
-        % [x,y axis not needed yet]
-        %
-        % @type integer @default []
-        MinYTickMarks = [];
+        % @type rowvec<integer> @default [0 0 0]
+%         MinTickMarks = [0 0 0];
+
+        AutoTickMarks = true;
         
         % For some reason on unix machines export_fig sometimes uses the last image saved to
         % as the next one.
@@ -542,6 +545,13 @@ classdef PlotManager < handle
             end
             this.SaveFormats = value;
         end
+        
+%         function set.MinTickMarks(this, value)
+%             if numel(value) ~= 3 || ~isnumeric(value) || any(value < 0)
+%                 error('MinTickMarks must be a three element positive numeric vector for X,Y and Z tick marks.');
+%             end
+%             this.MinTickMarks = value;
+%         end
     end
     
     methods(Access=private)
@@ -577,23 +587,71 @@ classdef PlotManager < handle
         end
         
         function checkTickMarks(this, h)
-            if ~isempty(this.MinYTickMarks) && length(get(h,'YTick')) < this.MinYTickMarks
-                lim = get(h,'YLim');
-                if strcmp(get(h,'YScale'),'linear')
-                    sfun = @linspace;
-                    fmt = '%2.2g';
-                else
-                    sfun = @logspace;
-                    lim = log10(lim);
-                    fmt = '%1.1e';
+            if this.AutoTickMarks
+                dims = {'X','Y'}; %,'Z'
+                fields = {'Tick','Scale','TickLabel','Data','Lim'};
+                valign = {'top', 'middle'};
+                halign = {'center', 'right'};
+                f = struct;
+                codim = [2 1];
+                for dim=1:length(dims)
+                    for fidx = 1:length(fields)
+                        f(dim).(fields{fidx}) = [dims{dim} fields{fidx}];
+                    end
+                    
+                    if strcmp(get(h,f(dim).Scale),'log')
+                        % Delete old labels
+                        set(h,f(dim).TickLabel,{});
+                        
+                        % Get current effective limits
+                        [ymin, ymax] = getLimits(h, f(dim));
+                        ylmi = ceil(log10(ymin));
+                        ylma = floor(log10(ymax));
+                        % Usually: plot log scale in steps of one
+                        step = 1;
+                        if ylma-ylmi < 3
+                            % Too few ticks: Double them
+                            step = .5;
+                            ylmi = ylmi-step;
+                            ylma = ylma+step;
+                        elseif ylma-ylmi > 6
+                            % Too many ticks: Halfen them
+                            step = 2;
+                        end
+                        % Determine tick steps
+                        expo = ylmi:step:ylma;
+                        tick = 10.^(expo);
+                        
+                        % Remove outliers
+                        valid = tick >= ymin & tick <= ymax;
+                        tick(~valid) = [];
+                        expo(~valid) = [];
+                        
+                        ticklbl = arrayfun(@(arg)sprintf('\\textbf{$10^{%g}$}',arg),expo,'UniformOutput',false);
+                        colim = get(h,f(codim(dim)).Lim);
+                        offset = 0.02;
+                        text(ones(size(tick))*(colim(1)-offset*(colim(2)-colim(1))),...
+                            tick,ticklbl,'VerticalAlignment',valign{dim},...
+                            'HorizontalAlignment',halign{dim},'interpreter','LaTex');
+                    end
                 end
-                % Move the labels 5% into the plot range interior
-                range = lim(2)-lim(1);
-                lim(1) = lim(1) + .05*range;
-                lim(2) = lim(2) - .05*range;
-                newticks = sfun(lim(1),lim(2),this.MinYTickMarks);
-                lbl = arrayfun(@(e)sprintf(fmt,e),newticks,'Unif',false);
-                set(h,'YTick',newticks,'YTickLabel',lbl);
+            end
+            
+            function [minlim, maxlim] = getLimits(h, f)
+                minlim = Inf; maxlim = -Inf;
+                lines = findobj(get(h,'Children'),'Type','line');
+                for k=1:length(lines)
+                    d = get(lines(k),f.Data);
+                    minlim = min(minlim, min(d(d~=0)));
+                    maxlim = max(maxlim, max(d(d~=0)));
+                end
+                lim = get(h,f.Lim);
+                if lim(1) ~= 0 && isfinite(lim(1))
+                    minlim = min(minlim, lim(1));
+                end
+                if lim(2) ~= 0 && isfinite(lim(2))
+                    maxlim = max(maxlim, lim(2));
+                end
             end
         end
         
@@ -612,7 +670,7 @@ classdef PlotManager < handle
                 childs = [childs 'Title'];
             end
             if ~isempty(this.SaveFont)
-                items = [ax cell2mat(get(ax,childs))];
+                items = [ax cell2mat(get(ax,childs)) findobj(ax,'Type','text')'];
                 oldfonts = get(items,fieldnames(this.SaveFont));
                 set(items,fieldnames(this.SaveFont),...
                     repmat(struct2cell(this.SaveFont)',numel(items),1));
@@ -635,7 +693,7 @@ classdef PlotManager < handle
                 childs = [childs 'Title'];
             end
             if ~isempty(this.SaveFont)
-                items = [ax cell2mat(get(ax,childs))];
+                items = [ax cell2mat(get(ax,childs)) findobj(ax,'Type','text')'];
                 set(items,fieldnames(this.SaveFont),oldfonts);
 %                 this.ensureLegendColumns(fig);
             end
