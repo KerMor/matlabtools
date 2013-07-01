@@ -96,8 +96,10 @@ classdef PlotManager < handle
         
         % DPI used for export. See export_fig settings.
         %
-        % @type char @default '150'
-        ExportDPI = '150';
+        % Defaults to the current pixels per inch resolution of the screen.
+        %
+        % @type integer @default get(0,'ScreenPixelsPerInch')
+        ExportDPI = get(0,'ScreenPixelsPerInch');
         
         % JPEG quality used for export. See export_fig settings.
         %
@@ -546,6 +548,13 @@ classdef PlotManager < handle
             this.SaveFormats = value;
         end
         
+        function set.ExportDPI(this, value)
+            if ~isposintscalar(value)
+                error('ExportDPI must be a positive integer.');
+            end
+            this.ExportDPI = value;
+        end
+        
 %         function set.MinTickMarks(this, value)
 %             if numel(value) ~= 3 || ~isnumeric(value) || any(value < 0)
 %                 error('MinTickMarks must be a three element positive numeric vector for X,Y and Z tick marks.');
@@ -656,12 +665,12 @@ classdef PlotManager < handle
         end
         
         function [oldtitles, oldfonts] = preSave(this, fig)
-            ax = findobj(get(fig,'Children'),'Type','axes');
-            % Get title strings
-            oldtitles = [];
+            allax = findobj(get(fig,'Children'),'Type','axes');
+            % Get title strings 
+            oldtitles = {}; %#ok<*AGROW>
             childs = {'XLabel','YLabel','ZLabel'};
             if this.NoTitlesOnSave
-                th = get(ax,'Title');
+                th = get(allax,'Title');
                 if numel(th) == 1, th = {th}; end
                 oldtitles = cellfun(@(th)get(th,'String'),th,...
                     'UniformOutput',false);
@@ -669,22 +678,24 @@ classdef PlotManager < handle
             else
                 childs = [childs 'Title'];
             end
+            oldfonts = {};
             if ~isempty(this.SaveFont)
-                items = [ax cell2mat(get(ax,childs)) findobj(ax,'Type','text')'];
-                oldfonts = get(items,fieldnames(this.SaveFont));
-                set(items,fieldnames(this.SaveFont),...
-                    repmat(struct2cell(this.SaveFont)',numel(items),1));
-%                 this.ensureLegendColumns(fig);
+                for k = 1:length(allax)
+                    ax = allax(k);
+                    items = [ax cell2mat(get(ax,childs)) findobj(ax,'Type','text')'];
+                    oldfonts{k} = get(items,fieldnames(this.SaveFont));
+                    set(items,fieldnames(this.SaveFont),...
+                        repmat(struct2cell(this.SaveFont)',numel(items),1));
+                end
             end
         end
         
         function postSave(this, fig, oldtitles, oldfonts)
-            ax = findobj(get(fig,'Children'),'Type','axes');
+            allax = findobj(get(fig,'Children'),'Type','axes');
             % Restore title strings
             childs = {'XLabel','YLabel','ZLabel'};
             if this.NoTitlesOnSave
-                th = get(findobj(get(fig,'Children'),...
-                    'Type','axes'),'Title');
+                th = get(allax,'Title');
                 if numel(th) == 1, th = {th}; end
                 for k=1:length(th)
                     set(th{k},'String',oldtitles{k});
@@ -693,9 +704,11 @@ classdef PlotManager < handle
                 childs = [childs 'Title'];
             end
             if ~isempty(this.SaveFont)
-                items = [ax cell2mat(get(ax,childs)) findobj(ax,'Type','text')'];
-                set(items,fieldnames(this.SaveFont),oldfonts);
-%                 this.ensureLegendColumns(fig);
+                for k = 1:length(allax)
+                    ax = allax(k); 
+                    items = [ax cell2mat(get(ax,childs)) findobj(ax,'Type','text')'];
+                    set(items,fieldnames(this.SaveFont),oldfonts{k});
+                end
             end
         end
         
@@ -733,7 +746,10 @@ classdef PlotManager < handle
                 if extidx == 1 % fig
                     saveas(fig, file, 'fig');
                 else
-                    args = {file, ['-' exts{extidx}],['-r' this.ExportDPI]};
+                    args = {file, ['-' exts{extidx}], sprintf('-r%d',this.ExportDPI)};
+                    if this.ExportDPI > 100
+                        args{end+1} = '-a2';
+                    end
                     if any(extidx == [2 3]) %pdf, eps
                         %args{end+1} = '-painters';
                         args{end+1} = '-transparent';
