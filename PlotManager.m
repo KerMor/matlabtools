@@ -26,6 +26,12 @@ classdef PlotManager < handle
 % % Zooms:
 % PlotManager.demo_Zoom
 %
+% @new{0,7,dw,2013-07-05}
+% - Compatibility with newest export_fig (June 2013) checked
+% - Rewrote the savePlots routine to pass all desired formats to export_fig on the fly
+% - New optional parameter "XArgs" that are passed to export_fig as-is
+% - New property "WhiteBackground" for white figure background on export (default true)
+%
 % @new{0,6,dw,2012-09-25}
 % - Now can set Figure names explicitly
 % - New property DoubleSaveJPG as sometimes on Linux machines the output is useless on one save
@@ -105,7 +111,7 @@ classdef PlotManager < handle
         %
         % @type char @default '95'
         JPEGQuality = '95';
-        
+       
         % Affects the savePlots behaviour.
         % This flag lets the PlotManager create subfolders in the target
         % folder according to the specified file extensions and places any
@@ -163,6 +169,12 @@ classdef PlotManager < handle
         %
         % @type logical @default true
         DoubleSaveJPG = true;
+        
+        % Flag that determines if a white ''figure'' background should be used instead of any
+        % set or default (grey) one
+        %
+        % @type logical @default true
+        WhiteBackground = true;
     end
     
     properties(Access=private)
@@ -362,12 +374,15 @@ classdef PlotManager < handle
             % rowvec<integer> @default Save all figures
             % SeparateLegends: A vector of indices of current figures that should be saved.
             % @type rowvec<logical> @default All legends stay in-plot
+            % XArgs: Any extra arguments that should be passed to export_fig. @type cell<char>
+            % @default {}
             
             ip = inputParser;
             ip.addParamValue('Format',this.SaveFormats,@(arg)(ischar(arg) || iscellstr(arg)) && ~isempty(arg));
             ip.addParamValue('Close',false,@islogical);
             ip.addParamValue('Selection',1:length(this.Figures),@isvector);
             ip.addParamValue('SeparateLegends',false,@(arg)islogical(arg) && isvector(arg));
+            ip.addParamValue('XArgs',{},@iscellstr);
             if nargin < 2
                 folder = pwd;
             end
@@ -398,8 +413,6 @@ classdef PlotManager < handle
                 fmtstr = [sprintf('%s, ',format{1:end-1}) format{end}];
             end
             fprintf('Saving %d current figures as "%s" in %s...', n, fmtstr, folder);
-            eff_folder = folder;
-            fmts = length(format);
             for idx=1:n
                 h = this.Figures(selection(idx));%#ok<*PROP>
                 if ishandle(h)
@@ -426,42 +439,52 @@ classdef PlotManager < handle
                                 'No legends found for Figure %d.',selection(idx));
                         end
                     end
-                    % Save with all formats
-                    for fmt = 1:fmts
-                        % Add format-named folder if enabled
-                        if this.UseFileTypeFolders
-                            eff_folder = fullfile(folder,format{fmt});
-                        end
-                        % Save actual figure
-                        eff_name = fname;
-                        if ~isempty(this.FilePrefix)
-                            eff_name = [this.FilePrefix '_' eff_name];%#ok
-                        end
-                        this.saveFigure(h, ...
-                            fullfile(eff_folder, eff_name), ...
-                            format{fmt});
-                        % Save extra legends (if given)
-                        for lidx = 1:length(legends)
-                            this.saveFigure(lfh(lidx), ...
-                                fullfile(eff_folder, ...
-                                    sprintf('%s_legend%d',eff_name,lidx)), ...
-                                    format{fmt});
-                        end
-                        % Quick fix: Repeat save process for JPG figures if desired
-                        if this.DoubleSaveJPG && strcmp(format{fmt},'jpg')
-                            % Save actual figure
-                            this.saveFigure(h, ...
-                                fullfile(eff_folder, eff_name), ...
-                                format{fmt});
-                            % Save extra legends (if given)
+                    
+                    % Add prefix if set
+                    if ~isempty(this.FilePrefix)
+                        fname = [this.FilePrefix '_' fname];
+                    end
+                    this.saveFigure(h, fullfile(folder, fname), format, res.XArgs);
+                    % Save extra legends (if given)
+                    for lidx = 1:length(legends)
+                        this.saveFigure(lfh(lidx), ...
+                            fullfile(folder, sprintf('%s_legend%d',fname, lidx)),...
+                            format, res.XArgs);
+                    end
+                    
+                    % Move created images to own folders if wanted
+                    if this.UseFileTypeFolders
+                        for fmt = 1:length(format)
+                            if exist(fullfile(folder,format{fmt}),'file') ~= 7
+                                mkdir(fullfile(folder,format{fmt}));
+                            end
+                            fn = [fname '.' format{fmt}];
+                            % Move to format-specific folder
+                            movefile(fullfile(folder, fn), fullfile(folder,format{fmt},fn));
+                            % Move extra legends (if given)
                             for lidx = 1:length(legends)
-                                this.saveFigure(lfh(lidx), ...
-                                    fullfile(eff_folder, ...
-                                        sprintf('%s_legend%d',eff_name,lidx)), ...
-                                        format{fmt});
+                                fn = sprintf('%s_legend%d.%s', fname, lidx, format{fmt});
+                                movefile(fullfile(folder, fn), fullfile(folder,format{fmt},fn));
                             end
                         end
                     end
+                        
+                        
+%                         % Quick fix: Repeat save process for JPG figures if desired
+%                         if this.DoubleSaveJPG && strcmp(format{fmt},'jpg')
+%                             % Save actual figure
+%                             this.saveFigure(h, ...
+%                                 fullfile(eff_folder, eff_name), ...
+%                                 format{fmt});
+%                             % Save extra legends (if given)
+%                             for lidx = 1:length(legends)
+%                                 this.saveFigure(lfh(lidx), ...
+%                                     fullfile(eff_folder, ...
+%                                         sprintf('%s_legend%d',eff_name,lidx)), ...
+%                                         format{fmt});
+%                             end
+%                         end
+
                     % Restore visibility of perhaps hidden legends and close temporary figures
                     for lidx = 1:length(legends)
                         set(legends(lidx),'Visible','on');
@@ -609,39 +632,42 @@ classdef PlotManager < handle
                     end
                     
                     if strcmp(get(h,f(dim).Scale),'log')
-                        % Delete old labels
-                        set(h,f(dim).TickLabel,{});
-                        
                         % Get current effective limits
                         [ymin, ymax] = getLimits(h, f(dim));
-                        ylmi = ceil(log10(ymin));
-                        ylma = floor(log10(ymax));
-                        % Usually: plot log scale in steps of one
-                        step = 1;
-                        if ylma-ylmi < 3
-                            % Too few ticks: Double them
-                            step = .5;
-                            ylmi = ylmi-step;
-                            ylma = ylma+step;
-                        elseif ylma-ylmi > 6
-                            % Too many ticks: Halfen them
-                            step = 2;
+                        
+                        if ~isempty(ymin) && ~isempty(ymax)
+                            % Delete old labels
+                            set(h,f(dim).TickLabel,{});
+
+                            ylmi = ceil(log10(ymin));
+                            ylma = floor(log10(ymax));
+                            % Usually: plot log scale in steps of one
+                            step = 1;
+                            if ylma-ylmi < 3
+                                % Too few ticks: Double them
+                                step = .5;
+                                ylmi = ylmi-step;
+                                ylma = ylma+step;
+                            elseif ylma-ylmi > 6
+                                % Too many ticks: Halfen them
+                                step = 2;
+                            end
+                            % Determine tick steps
+                            expo = ylmi:step:ylma;
+                            tick = 10.^(expo);
+
+                            % Remove outliers
+                            valid = tick >= ymin & tick <= ymax;
+                            tick(~valid) = [];
+                            expo(~valid) = [];
+
+                            ticklbl = arrayfun(@(arg)sprintf('\\textbf{$10^{%g}$}',arg),expo,'UniformOutput',false);
+                            colim = get(h,f(codim(dim)).Lim);
+                            offset = 0.02;
+                            text(ones(size(tick))*(colim(1)-offset*(colim(2)-colim(1))),...
+                                tick,ticklbl,'VerticalAlignment',valign{dim},...
+                                'HorizontalAlignment',halign{dim},'interpreter','LaTex');
                         end
-                        % Determine tick steps
-                        expo = ylmi:step:ylma;
-                        tick = 10.^(expo);
-                        
-                        % Remove outliers
-                        valid = tick >= ymin & tick <= ymax;
-                        tick(~valid) = [];
-                        expo(~valid) = [];
-                        
-                        ticklbl = arrayfun(@(arg)sprintf('\\textbf{$10^{%g}$}',arg),expo,'UniformOutput',false);
-                        colim = get(h,f(codim(dim)).Lim);
-                        offset = 0.02;
-                        text(ones(size(tick))*(colim(1)-offset*(colim(2)-colim(1))),...
-                            tick,ticklbl,'VerticalAlignment',valign{dim},...
-                            'HorizontalAlignment',halign{dim},'interpreter','LaTex');
                     end
                 end
             end
@@ -712,27 +738,28 @@ classdef PlotManager < handle
             end
         end
         
-        function saveFigure(this, fig, filename, ext)
+        function saveFigure(this, fig, rawfilename, extlist, xargs)
             % Supported formats: eps, jpg, fig, png, tif, pdf
             %
             % This is a scrap function from a differen class i didnt want
             % to include completely.
                         
-            exts = {'fig','pdf','eps','jpg','png','tif'};
+            exts = {'fig','pdf','eps','jpg','png','tif','bmp'};
             %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-            extidx = find(strcmp(ext,exts),1);
-            if isempty(extidx)
-                warning('ohno:invalidExtension','Invalid extension: %s, using eps',ext);
-                extidx = 3;
+            formats = cell2mat(cellfun(@(arg)strcmp(exts,arg)',extlist,...
+                'UniformOutput',false));
+            err = find(sum(formats)==0);
+            if ~isempty(err)
+                fprintf(2,'Invalid extension(s): %s\n',sprintf('%s ',extlist{err}));
+                extlist(err) = [];
             end
+            formats = sum(formats,2)';
             
-            if ~isempty(filename)
+            if ~isempty(rawfilename) && ~isempty(extlist)
                 % check if directory exists and resolve relative paths (export_fig subfunctions
                 % somehow tend to break)
-                [thedir, thefile] = fileparts(filename);
-                if exist(thedir,'dir') ~= 7
-                    mkdir(thedir);
-                end
+                [thedir, thefile] = fileparts(rawfilename);
+                
                 % Special treatment for home directory, as the file name is wrapped into ""
                 % inside export_fig's commands. this prevents ~ from being resolved and thus
                 % the pdf/eps export fails.
@@ -740,35 +767,38 @@ classdef PlotManager < handle
                     [~, homedir] = system('echo ~'); %contains a linebreak, too
                     thedir = [homedir(1:end-1) thedir(2:end)];
                 end
+                % Fix for mangled file paths
                 jdir = java.io.File(thedir);
                 thedir = char(jdir.getCanonicalPath);
-                file = [fullfile(thedir, thefile) '.' exts{extidx}];
-                if extidx == 1 % fig
-                    saveas(fig, file, 'fig');
+                file = fullfile(thedir, thefile);
+                if any(strcmp(extlist,'fig')) % fig
+                    saveas(fig, [file '.fig'], 'fig');
                 else
-                    args = {file, ['-' exts{extidx}], sprintf('-r%d',this.ExportDPI)};
+                    extlist = cellfun(@(e)sprintf('-%s',e),extlist,'UniformOutput',false);
+                    args = {file, extlist{:}, sprintf('-r%d',this.ExportDPI)};
                     if this.ExportDPI > 100
                         args{end+1} = '-a2';
                     end
-                    if any(extidx == [2 3]) %pdf, eps
-                        %args{end+1} = '-painters';
+                    if any(formats & logical([0 1 1 0 0 0 0])) %pdf, eps, png
                         args{end+1} = '-transparent';
-                    elseif extidx == 4 % jpg
+                    elseif any(formats & logical([0 1 1 1 0 0 0])) % jpg, eps, pdf
                         args{end+1} = ['-q' this.JPEGQuality];
-                        %args{end+1} = '-opengl';
-                    elseif extidx == 5 % png
-                        args{end+1} = '-transparent';
                     end
-
+                    args(end+1:end+length(xargs)) = xargs;
                     args{end+1} = fig;
 
-                    % export_fig ignores -transparent somehow on my machine..
-                    c = get(fig,'Color');
-                    set(fig,'Color','white');
-
+                    if this.WhiteBackground
+                        pos = get(fig, 'Position');
+                        oldcol = get(fig, 'Color');
+                        set(fig, 'Color', 'w', 'Position', pos);
+                    end
+                    
+                    drawnow;
                     export_fig(args{:});
-
-                    set(fig,'Color',c);
+                    
+                    if this.WhiteBackground
+                        set(fig, 'Color', oldcol, 'Position', pos);
+                    end
                 end
             else
                 fprintf(2,'No file specified. Aborting\n');
@@ -827,7 +857,7 @@ classdef PlotManager < handle
             pm.UseFileTypeFolders = true;
             % Disable saving of titles!
             pm.NoTitlesOnSave = true;
-            pm.savePlots(pwd);
+            pm.savePlots(pwd,'Close','true');
         end
         
         function pm = demo_SavePlots_Details
