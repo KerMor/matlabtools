@@ -283,7 +283,7 @@ classdef PlotManager < handle
                     this.cnt = numsubplots;
                 else
                     if gcf ~= this.Figures(end)
-                        figure(this.curax);
+                        figure(get(this.curax,'Parent'));
                     end
                 end
                 ax_handle = subplot(this.rows, this.cols, ...
@@ -648,9 +648,9 @@ classdef PlotManager < handle
                                 step = .5;
                                 ylmi = ylmi-step;
                                 ylma = ylma+step;
-                            elseif ylma-ylmi > 6
+                            elseif ylma-ylmi > 5
                                 % Too many ticks: Halfen them
-                                step = 2;
+                                step = ceil((ylma-ylmi) / 4);
                             end
                             % Determine tick steps
                             expo = ylmi:step:ylma;
@@ -677,8 +677,8 @@ classdef PlotManager < handle
                 lines = findobj(get(h,'Children'),'Type','line');
                 for k=1:length(lines)
                     d = get(lines(k),f.Data);
-                    minlim = min(minlim, min(d(d~=0)));
-                    maxlim = max(maxlim, max(d(d~=0)));
+                    minlim = min(minlim, min(d(d~=0 & isfinite(d))));
+                    maxlim = max(maxlim, max(d(d~=0 & isfinite(d))));
                 end
                 lim = get(h,f.Lim);
                 if lim(1) ~= 0 && isfinite(lim(1))
