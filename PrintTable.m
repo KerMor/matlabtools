@@ -21,8 +21,15 @@ classdef PrintTable < handle
 % array of strings as the last argument, containing custom formats to apply for each passed
 % argument.
 % Two conditions apply for this case: 
-% # There must be one format string for each columns of the PrintTable
-% # The column contents and the format string must be valid arguments for sprintf.
+% # If the cell contains more than one value, there must be one argument
+% for each column of the PrintTable
+% # The column contents must be valid arguments for sprintf if containing a
+% string, or hold a function handle taking one argument and returning a
+% char array.
+%
+% When passing a function handle, it may also take two arguments. The
+% second argument is then used to pass in the column number which is
+% currently formatted.
 %
 % Transposing:
 % An overload for the ctranspose-method of MatLab is available which easily switches rows with
@@ -118,6 +125,9 @@ classdef PrintTable < handle
 % - http://tex.stackexchange.com/questions/2917/resize-paper-to-mbox
 % - http://tex.stackexchange.com/questions/22173
 % - http://www.weinelt.de/latex/
+%
+% @change{0,7,dw,2013-08-10} The format cell argument can now also hold
+% function handles for advanced formatting. 
 %
 % @change{0,7,dw,2013-04-09} Added some table cell spacing by default (`\LaTeX` 'arraystretch')
 %
