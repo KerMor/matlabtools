@@ -779,7 +779,7 @@ classdef PlotManager < handle
                     if this.ExportDPI > 100
                         args{end+1} = '-a2';
                     end
-                    if any(formats & logical([0 1 1 0 0 0 0])) %pdf, eps, png
+                    if any(formats & logical([0 1 1 0 1 0 0])) %pdf, eps, png
                         args{end+1} = '-transparent';
                     elseif any(formats & logical([0 1 1 1 0 0 0])) % jpg, eps, pdf
                         args{end+1} = ['-q' this.JPEGQuality];

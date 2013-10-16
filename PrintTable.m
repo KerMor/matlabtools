@@ -466,6 +466,13 @@ classdef PrintTable < handle
             end
         end
         
+        function addMatrix(this, titles, data, varargin)
+            for k=1:size(data,1)
+                hlp = num2cell(data(k,:));
+                this.addRow(titles{k},hlp{:},varargin{:});
+            end    
+        end
+        
         function addRow(this, varargin)
             % Adds a row to the current table.
             %
@@ -727,7 +734,9 @@ classdef PrintTable < handle
             end
             d = dbstack;
             d = d(find(~strcmp({d(:).file},'PrintTable.m'),1));
-            fprintf(outfile,'%% Created in %s:%d at %s\n',d.name,d.line,which(d.file));
+            if ~isempty(d)                
+                fprintf(outfile,'%% Created in %s:%d at %s\n',d.name,d.line,which(d.file));
+            end
             % Add an informative comment to make the user aware of it's options :-)
             fprintf(outfile,'%% Export settings: TexMathModeDetection %d, HasHeader %d, HasRowHeader %d, StripInsertedTabChars %d, IsPDF %d, TightPDF %d\n',...
                     this.TexMathModeDetection,this.HasHeader,this.HasRowHeader,this.StripInsertedTabChars,...
