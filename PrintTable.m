@@ -540,6 +540,58 @@ classdef PrintTable < handle
             this.updateContentLengths;
         end
         
+        function this = sort(this, colnr, direction)
+            % Sorts this table in alphanumeric order.
+            %
+            % Optionally, a column number and sort direction can be
+            % specified.
+            %
+            % The default sort column is one. If you set HasHeader to true,
+            % the default sort column will be two. However, the column
+            % numbering will always include the first column in order to
+            % explicitly allow sorting by row headers.
+            %
+            % Parameters:
+            % colnr: The column number @type integer @default 1 or 2
+            % depending on HasHeader setting
+            % direction: The sort direction 'ascend' or 'descend' @type
+            % char @default 'ascend'
+            if nargin < 3
+                direction = 'ascend';
+                if nargin < 2
+                    if this.HasHeader
+                        colnr = 2;
+                    else
+                        colnr = 1;
+                    end
+                end
+            end
+            
+            if isempty(this.data)
+                return;
+            elseif colnr < 1 || colnr > length(this.data{1})
+                error('Please specify a valid column number');
+            end
+            
+            vals = {};
+            for k = 1:length(this.data)
+                vals{k} = this.data{k}{colnr};%#ok
+            end
+            [~, sidx] = sort(vals);
+            % "Manually" choose direction
+            if strcmpi(direction,'descend')
+                sidx = fliplr(sidx);
+            end
+            copy = this.data;
+            copym = this.mathmode;
+            for k = 1:length(this.data)
+                copy{k} = this.data{sidx(k)};
+                copym(k,:) = this.mathmode(sidx(k),:);
+            end
+            this.data = copy;
+            this.mathmode = copym;
+        end
+        
         function transposed = ctranspose(this)
             transposed = this.clone;
             hlp = reshape([this.data{:}],length(this.data{1}),[]);
