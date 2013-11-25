@@ -758,7 +758,11 @@ classdef PlotManager < handle
             if ~isempty(rawfilename) && ~isempty(extlist)
                 % check if directory exists and resolve relative paths (export_fig subfunctions
                 % somehow tend to break)
-                [thedir, thefile] = fileparts(rawfilename);
+                seppos = strfind(rawfilename,filesep);
+                thedir = rawfilename(1:seppos(end)-1);
+                thefile = rawfilename(seppos(end)+1:end);
+                % Does not work if filename contains dots!
+                %[thedir, thefile] = fileparts(rawfilename);
                 
                 % Special treatment for home directory, as the file name is wrapped into ""
                 % inside export_fig's commands. this prevents ~ from being resolved and thus
@@ -771,9 +775,12 @@ classdef PlotManager < handle
                 jdir = java.io.File(thedir);
                 thedir = char(jdir.getCanonicalPath);
                 file = fullfile(thedir, thefile);
-                if any(strcmp(extlist,'fig')) % fig
+                figpos = strcmp(extlist,'fig');
+                if any(figpos) % fig
                     saveas(fig, [file '.fig'], 'fig');
-                else
+                    extlist(figpos) = [];
+                end
+                if ~isempty(extlist)
                     extlist = cellfun(@(e)sprintf('-%s',e),extlist,'UniformOutput',false);
                     args = {file, extlist{:}, sprintf('-r%d',this.ExportDPI)};
                     if this.ExportDPI > 100

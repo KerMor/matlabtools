@@ -826,7 +826,11 @@ classdef PrintTable < handle
             % of tabs
             row = this.data{rowidx};
             % Check if mathmode has been determined
-            ismm = this.mathmode(rowidx,:);
+            if ~isempty(this.mathmode)
+                ismm = this.mathmode(rowidx,:);
+            else
+                ismm = false(size(row));
+            end
             % Check if we are producing tex-based output
             istex = any(strcmp(this.Format,{'tex', 'pdf'}));
             sl = length(sep);
