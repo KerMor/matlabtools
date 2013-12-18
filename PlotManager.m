@@ -244,6 +244,11 @@ classdef PlotManager < handle
             % xlab: The xlabel for the axes. @type char @default []
             % ylab: The ylabel for the axes. @type char @default []
             % leg_str: The legend entry strings for the axes. @type cell<char> @default {}
+            % numsubplots: The number of subplots to use up for this next
+            % plot. Works only if the number of subplots is contained in
+            % the current subplot row (i.e. there are sufficient columns
+            % left over to use up the required number of subplots.) @type
+            % integer @default 1
             %
             % Return values:
             % ax_handle: The handle to the new axes object. @type axes

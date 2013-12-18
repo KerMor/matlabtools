@@ -2,7 +2,7 @@ function [t, matches, parents, locations] = FindInstance(obj, type, varargin)
 % FindInstance: Locate instances of certain classes within a class or a struct.
 %
 % Parameters:
-% obj: The object in which to search. @type [handle|struct]
+% obj: The object in which to search. Can be a handle or struct. @type handle
 % type: The type of the instances to find. @type char
 % varargin: Any more arguments are assumed to be character arrays and denote existing
 % properties of the instances to find.

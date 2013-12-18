@@ -21,9 +21,9 @@ classdef PrintTable < handle
 % array of strings as the last argument, containing custom formats to apply for each passed
 % argument.
 % Two conditions apply for this case: 
-% # If the cell contains more than one value, there must be one argument
+% - If the cell contains more than one value, there must be one argument
 % for each column of the PrintTable
-% # The column contents must be valid arguments for sprintf if containing a
+%  -The column contents must be valid arguments for sprintf if containing a
 % string, or hold a function handle taking one argument and returning a
 % char array.
 %
@@ -36,6 +36,7 @@ classdef PrintTable < handle
 % columns.
 %
 % Examples:
+% @code
 % % Simply run
 % PrintTable.test_PrintTable;
 % % or
@@ -111,6 +112,7 @@ classdef PrintTable < handle
 % t.TightPDF = false;
 % t.saveToFile('mytable_tightpdf.pdf');
 %
+% @endcode
 %
 % @note Of course, any editor might have its own setting regarding tab
 % spacing. As the default in MatLab and e.g. KWrite is four characters,
@@ -260,7 +262,7 @@ classdef PrintTable < handle
         % Currently the values 'txt' for plaintext and 'tex' for LaTeX
         % output are available.
         %
-        % @default 'txt' @type enum<'txt', 'tex'>
+        % @default 'txt' @type enum
         Format = 'txt';
         
         % A caption for the table.
@@ -1223,7 +1225,10 @@ classdef PrintTable < handle
             % Display of output in command window
             if ~isempty(jDesktop.getClient('Command Window'))
                 % Display of output in console etc
-                l = com.mathworks.services.Prefs.getIntegerPref('CommandWindowSpacesPerTab',defaultLen);
+                l = com.mathworks.services.Prefs.getIntegerPref('CommandWindowSpacesPerTab',-1);
+                if l < 0
+                    l = com.mathworks.services.Prefs.getIntegerPref('EditorSpacesPerTab',defaultLen);
+                end
             elseif isunix
                 [c, l] = system('echo -n $''\t'' | wc -L');
                 if c == 0
