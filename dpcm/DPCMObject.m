@@ -143,7 +143,7 @@ classdef DPCMObject < handle
                         
                         this.PropertiesChanged(key) = ps;
                     end
-                else
+                elseif ~isempty(hlp)
                     error('When registering a property you must define the @propclass{<level>} tag in the properties help text.');
                 end
             end

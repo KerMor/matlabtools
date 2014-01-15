@@ -26,6 +26,10 @@ classdef PlotManager < handle
 % % Zooms:
 % PlotManager.demo_Zoom
 %
+% @change{0,7,dw,2014-01-15} Changed the property "SingleSize" to
+% "FigureSize". The sizes are now used whenever a new figure is created,
+% independently of being in single or subplot mode.
+%
 % @new{0,7,dw,2013-07-05}
 % - Compatibility with newest export_fig (June 2013) checked
 % - Rewrote the savePlots routine to pass all desired formats to export_fig on the fly
@@ -86,13 +90,13 @@ classdef PlotManager < handle
         % @type logical @default true
         Single = true;
         
-        % The figure size for each newly created figure when on single
-        % mode.
+        % The figure size for each newly created figure. Set to [] to use
+        % system default.
         %
         % Is a two dimensional row vector with width and height
         %
-        % @type rowvec<double> @default [600 480]
-        SingleSize = [800 600];
+        % @type rowvec<double> @default [800 600]
+        FigureSize = [800 600];
         
         % A prefix that has to be put before each file name for exported
         % plots.
@@ -233,7 +237,7 @@ classdef PlotManager < handle
             % Creates a new axis to plot in. Depending on the property
             % tools.PlotMananger.Single this will either advance to the
             % next subplot or open up a new figure window of size
-            % SingleSize in the center of the main screen.
+            % FigureSize in the center of the main screen.
             %
             % If you specify a tag it will be used upon exporting created
             % plots to the file system as filename of the plot.
@@ -275,8 +279,13 @@ classdef PlotManager < handle
             this.nyl = ylab;
             this.nleg = leg_str;
             
+            if ~isempty(this.FigureSize)
+                fpos = [(this.ss - this.FigureSize)/2 this.FigureSize];
+            else
+                fpos = get(0,'DefaultFigurePosition');
+            end
             if this.Single
-                this.Figures(end+1) = figure('Position',[(this.ss - this.SingleSize)/2 this.SingleSize],'Tag',tag);
+                this.Figures(end+1) = figure('Position',fpos,'Tag',tag);
                 ax_handle = gca;
             else
                 if nargin < 7
@@ -284,7 +293,7 @@ classdef PlotManager < handle
                 end
                 this.cnt = this.cnt + numsubplots;
                 if isempty(this.Figures) || this.cnt > this.rows*this.cols
-                    this.Figures(end+1) = figure('Tag',tag);
+                    this.Figures(end+1) = figure('Position',fpos,'Tag',tag);
                     this.cnt = numsubplots;
                 else
                     if gcf ~= this.Figures(end)
