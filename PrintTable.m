@@ -204,8 +204,8 @@ classdef PrintTable < handle
 %
 % This class has originally been developed as part of the framework
 % KerMor - Model Order Reduction using Kernels:
-% - \c Homepage http://www.agh.ians.uni-stuttgart.de/research/software/kermor.html
-% - \c Documentation http://www.agh.ians.uni-stuttgart.de/documentation/kermor/
+% - \c Homepage http://www.morepas.org/software/index.html
+% - \c Documentation http://www.morepas.org/software/kermor/index.html
 %
 % Copyright (c) 2011, Daniel Wirtz
 % All rights reserved.
