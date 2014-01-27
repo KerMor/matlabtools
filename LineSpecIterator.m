@@ -32,12 +32,15 @@ classdef LineSpecIterator < handle
                     .9  .6  0;
                     .2  1  .2;
                     .5  .5  1]; % start of custom colors
+        
+        ShortColors = {'r','g','b','c','m','y','k'};
     end
     
     properties(Access=private)
         curl = 0;
         curm = 0;
         curc = 0;
+        cursc = 0;
         excluded_cols = [];
     end
     
@@ -92,6 +95,19 @@ classdef LineSpecIterator < handle
         function linestyle = nextLineStyle(this)
             linestyle = this.LineStyles{this.curl+1};
             this.curl = mod(this.curl+1,length(this.LineStyles));
+        end
+        
+        function ls = nextColorLineStyle(this)
+            ls = [this.ShortColors{this.cursc+1} this.nextLineStyle];
+            this.cursc = mod(this.cursc+1,length(this.ShortColors));
+        end
+        
+        function c = nextShortColor(this, linestyle)
+            if nargin < 2
+                linestyle = '-';
+            end
+            c = [this.ShortColors{this.cursc+1} linestyle];
+            this.cursc = mod(this.cursc+1,length(this.ShortColors));
         end
         
         function color = nextColor(this)
