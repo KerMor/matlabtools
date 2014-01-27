@@ -173,7 +173,7 @@ classdef PrintTable < handle
 % @change{0,6,dw,2012-06-11} 
 % - Added a new property NumRows that returns the number of rows (excluding
 % the header if set).
-%- Made the output a bit nicer and supporting logical values now
+% - Made the output a bit nicer and supporting logical values now
 %
 % @change{0,6,dw,2012-05-04}
 % - Added a property PrintTable.HasRowHeader that allows to use a single
