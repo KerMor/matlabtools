@@ -20,8 +20,8 @@ classdef RangeSplitter < handle
     properties(Access=private)
         % Num Parts
         np;
-        % Max part size
-        ms;
+        % Positions of the parts
+        partpos = [];
     end
     
     methods
@@ -36,11 +36,23 @@ classdef RangeSplitter < handle
             ip.parse(varargin{:});
             res = ip.Results;
             if ~isempty(res.Max)
-                this.np = ceil(total / res.Max);
-                this.ms = res.Max;
+                pos = 0:res.Max:total;
+                if (pos(end) < total)
+                    pos = [pos total];
+                end
+                this.np = length(pos)-1;
+                this.partpos = pos;
             elseif ~isempty(res.Num)
+                if res.Num > total
+                    error('Cannot have more parts than total elements');
+                end
                 this.np = res.Num;
-                this.ms = ceil(total/res.Num);
+                sizes = ones(1,this.np)*floor(total/res.Num);
+                rest = mod(total,res.Num);
+                if rest > 0
+                    sizes(1:rest) = sizes(1:rest)+1;
+                end
+                this.partpos = [0 cumsum(sizes)];
             else
                 error('You must specify either a maximum part size or the number of parts.');
             end
@@ -55,7 +67,7 @@ classdef RangeSplitter < handle
             if nr > this.np
                 error('Only %d parts present.',this.np);
             end
-            pt = ((nr-1)*this.ms+1):min((nr*this.ms),this.Total);
+            pt = this.partpos(nr)+1:this.partpos(nr+1);
         end
     end
     
@@ -91,8 +103,27 @@ classdef RangeSplitter < handle
             res = res && isequal(64:84,rs.getPart(4));
             res = res && isequal(85:100,rs.getPart(5));
             
+            rs = RangeSplitter(6,'Num',4);
+            res = res && isequal(1:2,rs.getPart(1));
+            res = res && isequal(3:4,rs.getPart(2));
+            res = res && isequal(5,rs.getPart(3));
+            res = res && isequal(6,rs.getPart(4));
+            
+            rs = RangeSplitter(9,'Num',4);
+            res = res && isequal(1:3,rs.getPart(1));
+            res = res && isequal(4:5,rs.getPart(2));
+            res = res && isequal(6:7,rs.getPart(3));
+            res = res && isequal(8:9,rs.getPart(4));
+            
             try
                 rs = RangeSplitter(10);%#ok
+                res = false;
+            catch ME%#ok
+                res = res && true;
+            end
+            
+            try
+                rs = RangeSplitter(10,'Num',14);%#ok
                 res = false;
             catch ME%#ok
                 res = res && true;
