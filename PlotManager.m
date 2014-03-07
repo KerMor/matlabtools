@@ -95,8 +95,8 @@ classdef PlotManager < handle
         %
         % Is a two dimensional row vector with width and height
         %
-        % @type rowvec<double> @default [800 600]
-        FigureSize = [800 600];
+        % @type rowvec<double> @default []
+        FigureSize = [];
         
         % A prefix that has to be put before each file name for exported
         % plots.
@@ -580,7 +580,11 @@ classdef PlotManager < handle
     methods
         function set.SaveFormats(this, value)
             if ~iscellstr(value)
-                error('SaveFormats must be a cell of strings.');
+                if ischar(value)
+                    value = {value};
+                else
+                    error('SaveFormats must be a cell of strings.');
+                end
             end
             this.SaveFormats = value;
         end
