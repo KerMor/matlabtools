@@ -14,19 +14,23 @@ classdef MUnit
     % caught automatically by the system, resulting in a failure of the
     % test.
     %
+    % The most convenient way of calling MUnit is to use
+    % @code done = {};
+    %  done = MUnit.RunClassTests(cd, done); @endcode
+    % After testing, you can simply re-run the last command, and the
+    % subsequently successful tests (after e.g. fixing) will automatically
+    % be added to the done cell array.
+    %
     % See also: TestFunctionPrefix
     %
     % @author Daniel Wirtz @date 12.03.2010
     %
-    % @change{0,3,dw,2011-04-26} Added linebreaks after each message to avoid loss of lines when
-    % using cprintf.
+    % @change{0,7,dw,2014-04-15} Added a convenience interface for easy
+    % skipping of previously successful tests (via passing an "exclude"
+    % cell array and retrieving a "successful" cell array)
     %
-    % @todo 08.10.10: extend test method signature by a verbose flag; v=0 means
-    % quiet, v=1 means text output and v=2 means with plots
-    % @todo 08.10.10: apply changes of extended test method signature to all already
-    % implemented test cases where applicable!
-    % @todo 08.10.10: Extend MUnit to also be able to deal with folders &
-    % function files named according to MUnit convention
+    % @change{0,3,dw,2011-04-26} Added linebreaks after each message to
+    % avoid loss of lines when using cprintf
     
     properties(Constant)
         % The prefix for any function that will be detected in the MUnit
@@ -46,7 +50,7 @@ classdef MUnit
     end
     
     methods(Static)
-        function RunClassTests(dir)
+        function succeeded = RunClassTests(dir, exclude)
             % Runs class tests recursively within the specified path.
             %
             % If no path is given, the current directory (cd) is used.
@@ -57,8 +61,11 @@ classdef MUnit
             % After running all tests a summary is provided.
             
             % Check for no specified path
-            if nargin == 0
-                dir = cd;
+            if nargin < 2
+                exclude = {};
+                if nargin < 1
+                    dir = cd;
+                end
             end
             
             % Check if the current directory path contains packages and
@@ -75,7 +82,7 @@ classdef MUnit
             a.UseDPCM = false;
             
             % Start recursive run
-            [s,f] = MUnit.recursiveRun(dir,curPackage);
+            [s,f,succeeded] = MUnit.recursiveRun(dir, curPackage, exclude);
             
             a.UseDPCM = old;
             
@@ -87,29 +94,37 @@ classdef MUnit
     end
     
     methods(Static, Access=private)
-        function [s,f] = recursiveRun(dir,currentPackage)
+        function [s,f,succeeded] = recursiveRun(dir, currentPackage, exclude)
             % Internal private recursion function.
             %
             % Parameters:
-            % dir: The directory to recurse, as full absolute path
-            % currentPackage: The current package name
+            % dir: The directory to recurse, as full absolute path @type
+            % char
+            % currentPackage: The current package name @type char
+            % exclude: A cell array of strings containing function names
+            % (fully qualified) that should not be tested @type cell<char>
+            % @default {}
             %
             % Return values:
             % s: The number of successful tests
             % f: The number of failed tests
+            % succeeded: A cell array of strings containing the fully
+            % qualified names of functions that have successfully run.
+            % Contains all values of exclude, if set. @type cell<char>
             w = what(dir);
             
             % Some weird afs stuff goin on!
             w=w(1);
             
-            s = 0; f = 0;
+            s = 0; f = 0; succeeded = exclude;
             % Descend into any package
             for idx = 1:length(w.packages)
                 subdir = fullfile(w.path,['+' w.packages{idx}]);
                 %disp(['Descending into ' subdir]);
-                [sa,fa] = MUnit.recursiveRun(subdir, [currentPackage w.packages{idx} '.']);
+                [sa,fa,pcksucc] = MUnit.recursiveRun(subdir, [currentPackage w.packages{idx} '.'],exclude);
                 s = s + sa;
                 f = f + fa;
+                succeeded = [succeeded pcksucc];%#ok
             end
             
             pref = MUnit.TestFunctionPrefix;
@@ -119,7 +134,7 @@ classdef MUnit
             
             % Run tests in current directory
             for idx = 1:length(targets)
-                [p,n] = fileparts(targets{idx});
+                [~,n] = fileparts(targets{idx});
                 
                 %disp(['Checking ' n '...']);
                 
@@ -144,20 +159,24 @@ classdef MUnit
                             % check if the method is static [non-statics
                             % cant be run without instances.. :-)]
                             if m.Static
+                                fullname = [mc.Name '.' m.Name];
+                                if any(strcmp(fullname,exclude))
+                                    continue;
+                                end
                                 lines = '-----------------------------';
-                                %MUnit.BlueCol
                                 fprintf(2,[lines ' running '...
                                     mc.Name ' -> <a href="matlab:run(' mc.Name '.' m.Name ')">' m.Name(6:end) '</a>... ' lines '\n']);
                                 try
-                                    eval(['outargs = nargout(@' mc.Name '.' m.Name ');']);
+                                    eval(['outargs = nargout(@' fullname ');']);
                                     if outargs > 0
-                                        command = ['succ = ' mc.Name '.' m.Name ';'];
+                                        command = ['succ = ' fullname ';'];
                                     else
-                                        command = [mc.Name '.' m.Name ';'];
+                                        command = [fullname ';'];
                                     end
                                     eval(command);
                                     if outargs == 0 || succ
                                         cprintf(MUnit.GreenCol,['Test ' mc.Name ' -> ' m.Name(6:end) ' succeeded!\n']);
+                                        succeeded{end+1} = fullname;%#ok
                                         s = s+1;
                                     elseif ~succ
                                         cprintf('Red','Failure!\n');
