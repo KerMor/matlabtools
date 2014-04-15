@@ -90,6 +90,14 @@ classdef PlotManager < handle
         % @type logical @default true
         Single = true;
         
+        % Controls the maximum number of simultaneously opened figures.
+        %
+        % Set to a finite number to make the PlotManager re-use currently
+        % openend figures. Has NO effect if Single is set to true.
+        %
+        % @type integer @default Inf
+        MaxFigures = Inf;
+        
         % The figure size for each newly created figure. Set to [] to use
         % system default.
         %
@@ -196,6 +204,7 @@ classdef PlotManager < handle
     
     properties(Access=private, Transient)
         curax = [];
+        fignr;
         cnt;
         ss;
         % caption/labels for next plots
@@ -228,6 +237,7 @@ classdef PlotManager < handle
                 end
             end
             this.cnt = 0;
+            this.fignr = 0;
             this.Figures = [];
             s = get(0,'MonitorPositions');
             this.ss = s(1,3:4);
@@ -293,9 +303,10 @@ classdef PlotManager < handle
                 end
                 this.cnt = this.cnt + numsubplots;
                 if isempty(this.Figures) || this.cnt > this.rows*this.cols
-                    this.Figures(end+1) = figure('Position',fpos,'Tag',tag);
-                    this.cnt = numsubplots;
+                    this.nextFigure(numsubplots,'Position',fpos,'Tag',tag);
                 else
+                    % Re-Focus on last figure to always correctly continue
+                    % filling in plots
                     if gcf ~= this.Figures(end)
                         figure(get(this.curax,'Parent'));
                     end
@@ -533,6 +544,7 @@ classdef PlotManager < handle
                 this.curax = [];
             end
             this.Figures(selection) = [];
+            this.fignr = 0;
             this.cnt = 0;
         end
         
@@ -605,6 +617,18 @@ classdef PlotManager < handle
     end
     
     methods(Access=private)
+        
+        function fh = nextFigure(this, numsubplots, varargin)
+            if this.fignr+1 > this.MaxFigures
+                this.fignr = 1;
+                fh = figure(this.Figures(1));
+            else
+                this.fignr = this.fignr + 1;
+                fh = figure(varargin{:});
+                this.Figures(this.fignr) = fh;
+            end
+            this.cnt = numsubplots;
+        end
         
         function finishCurrent(this)
             % Finishes processing of the current plot, e.g. sets the labels
