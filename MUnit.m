@@ -121,10 +121,9 @@ classdef MUnit
             for idx = 1:length(w.packages)
                 subdir = fullfile(w.path,['+' w.packages{idx}]);
                 %disp(['Descending into ' subdir]);
-                [sa,fa,pcksucc] = MUnit.recursiveRun(subdir, [currentPackage w.packages{idx} '.'],exclude);
+                [sa,fa,succeeded] = MUnit.recursiveRun(subdir, [currentPackage w.packages{idx} '.'], succeeded);
                 s = s + sa;
                 f = f + fa;
-                succeeded = [succeeded pcksucc];%#ok
             end
             
             pref = MUnit.TestFunctionPrefix;
