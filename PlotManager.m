@@ -327,6 +327,9 @@ classdef PlotManager < handle
                 return;
             elseif ~this.Single
                 error('copyFigure works only in single plot mode.');
+            end
+            if nargin < 2
+                nr = length(this.Figures);
             elseif isempty(nr) || ~isposintscalar(nr) || nr > length(this.Figures)
                 error('nr must not be empty and within the range 1 to %d',length(this.Figures));
             end
