@@ -86,7 +86,12 @@ function [t, matches, parents, locations] = FindInstance(obj, type, varargin)
             end
         else
             if isa(obj,'handle')
-                os = struct(obj);
+                try
+                   os = struct(obj);
+                catch ME
+%                     t.addRow(lvl,class(obj),'error',class(obj),{});
+%                     return;
+                end
             elseif isstruct(obj)
                 os = obj;
             end
