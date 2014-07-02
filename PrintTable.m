@@ -509,8 +509,9 @@ classdef PrintTable < handle
             this.updateContentLengthAt(length(this.data));
             % Check if a latex command might be contained
             % (so far no re-computation is done on row removal)
+            texcmdfun = @(s)~isempty([strfind(s,'\') strfind(s,'_') strfind(s,'^')]);
             this.haslatexcommand = this.haslatexcommand ...
-                || any(cellfun(@(s)~isempty(strfind(s,'\')),this.data{end}));
+                || any(cellfun(texcmdfun,this.data{end}));
         end
         
 %         function insertRow(this, pos, varargin)
@@ -995,7 +996,7 @@ classdef PrintTable < handle
             end
             % Detect if any of the cell contents are numerical values
             fun = @(arg)~isempty(arg) && arg(1) ~= '$' && arg(end) ~= '$' ...
-                        && (~isnan(str2double(arg)) || ~isempty(strfind(arg,'\')));
+                        && (~isnan(str2double(arg)) || ~isempty(strfind(arg,'\')) || ~isempty(strfind(arg,'_')) || ~isempty(strfind(arg,'^')));
             ismm = cellfun(fun,str);
         end
         
