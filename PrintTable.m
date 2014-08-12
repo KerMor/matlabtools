@@ -914,21 +914,17 @@ classdef PrintTable < handle
                 % apply same format string
                 if length(data{end}) == 1 && length(data)-1 > 1
                     data{end} = repmat(data{end},1,length(data)-1);
-                    if this.HasRowHeader
-                        % Make sure the row header becomes a string if not
-                        % already one
-                        data(1) = this.stringify(data(1));
-                        data{end}{1} = '%s';
-                    end
-                elseif this.HasRowHeader && length(data{end}) == length(data)-2
-                    % Make sure the row header becomes a string if not
-                    % already one
-                    data(1) = this.stringify(data(1));
-                    data{end} = ['%s' data{end}(:)'];
+                elseif length(data{end}) ~= length(data)-2
+                    error('Either provide a single format string or one for each column.');
                 end
                 str = cell(1,length(data)-1);
                 % Apply sprintf pattern to each element
-                for i=1:length(data)-1
+                start = 1;
+                if this.HasRowHeader
+                    str(1) = this.stringify(data(1));
+                    start = 2;
+                end
+                for i=start:length(data)-1
                     if isa(data{end}{i},'function_handle')
                         if nargin(data{end}{i}) > 1
                             tmpstr = data{end}{i}(data{i},i);
