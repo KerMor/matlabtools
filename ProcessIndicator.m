@@ -58,14 +58,11 @@ classdef ProcessIndicator < handle
             % this: The new ProcessIndicator @type ProcessIndicator
             if nargin < 3
                 wb = false;
-                if nargin < 1
-                    this.title = 'Process running';
-                end
             end
             if ~isempty(varargin)
                 this.title = sprintf(title,varargin{:});
             else
-                this.title = title;
+                this.title = sprintf('%s (%d total)',title,total);
             end
             this.UseWaitbar = wb;
             if nargin > 1
