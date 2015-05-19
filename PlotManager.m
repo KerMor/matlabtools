@@ -281,6 +281,9 @@ classdef PlotManager < handle
                     end
                 end
             end
+            % Fix stupid latex cant find image because there's a dot in the
+            % filename bug
+            tag = strrep(tag,'.','_');
             % Finish current plot
             this.finishCurrent;
             % Store caption etc for upcoming plot
@@ -295,7 +298,8 @@ classdef PlotManager < handle
                 fpos = get(0,'DefaultFigurePosition');
             end
             if this.Single
-                this.Figures(end+1) = figure('Position',fpos,'Tag',tag);
+                this.Figures(end+1) = figure('Position',fpos,'Tag',tag,...
+                    'Units','pixels');
                 ax_handle = gca;
             else
                 if nargin < 7
@@ -303,7 +307,8 @@ classdef PlotManager < handle
                 end
                 this.cnt = this.cnt + numsubplots;
                 if isempty(this.Figures) || this.cnt > this.rows*this.cols
-                    this.nextFigure(numsubplots,'Position',fpos,'Tag',tag);
+                    this.nextFigure(numsubplots,'Position',fpos,'Tag',tag,...
+                        'Units','pixels');
                 else
                     % Re-Focus on last figure to always correctly continue
                     % filling in plots
@@ -497,7 +502,6 @@ classdef PlotManager < handle
                         end
                     end
                         
-                        
 %                         % Quick fix: Repeat save process for JPG figures if desired
 %                         if this.DoubleSaveJPG && strcmp(format{fmt},'jpg')
 %                             % Save actual figure
@@ -666,7 +670,7 @@ classdef PlotManager < handle
         function checkTickMarks(this, h)
             if this.AutoTickMarks
                 dims = {'X','Y'}; %,'Z'
-                fields = {'Tick','Scale','TickLabel','Data','Lim'};
+                fields = {'Tick','Scale','TickLabel','Data','Lim','TickMode'};
                 valign = {'top', 'middle'};
                 halign = {'center', 'right'};
                 f = struct;

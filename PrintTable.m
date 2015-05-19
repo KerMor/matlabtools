@@ -914,7 +914,7 @@ classdef PrintTable < handle
                 % apply same format string
                 if length(data{end}) == 1 && length(data)-1 > 1
                     data{end} = repmat(data{end},1,length(data)-1);
-                elseif length(data{end}) ~= length(data)-2
+                elseif length(data{end}) ~= length(data)-1
                     error('Either provide a single format string or one for each column.');
                 end
                 str = cell(1,length(data)-1);
