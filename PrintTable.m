@@ -914,6 +914,8 @@ classdef PrintTable < handle
                 % apply same format string
                 if length(data{end}) == 1 && length(data)-1 > 1
                     data{end} = repmat(data{end},1,length(data)-1);
+                elseif this.HasRowHeader && length(data{end}) == length(data)-2
+                    data{end} = ['%s' data{end}];
                 elseif length(data{end}) ~= length(data)-1
                     error('Either provide a single format string or one for each column.');
                 end
@@ -1186,7 +1188,7 @@ classdef PrintTable < handle
             t.addRow('header-expl-fmt',456,pi,{'%s','%d','%2.2f'});
             t.addRow(1234567,'12345',45.3463E-4);
             x = 4;
-            % This is the offending line
+            % This is the offending latex line
             t.addRow('x=4','\sin(x)',sin(x),{'%s','%f'});
             % Explicit wrapping directly or with $$ per format string
             t.addRow('x=4','25 (5*5)=',5*5,{'$%s$','%d'});

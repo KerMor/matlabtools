@@ -50,7 +50,7 @@ classdef MUnit
     end
     
     methods(Static)
-        function succeeded = RunClassTests(dir, exclude)
+        function succeeded = RunClassTests(dir, returnonerror, exclude)
             % Runs class tests recursively within the specified path.
             %
             % If no path is given, the current directory (cd) is used.
@@ -61,10 +61,13 @@ classdef MUnit
             % After running all tests a summary is provided.
             
             % Check for no specified path
-            if nargin < 2
+            if nargin < 3
                 exclude = {};
-                if nargin < 1
-                    dir = cd;
+                if nargin < 2
+                    returnonerror = false;
+                    if nargin < 1
+                        dir = cd;
+                    end
                 end
             end
             
@@ -82,19 +85,23 @@ classdef MUnit
             a.UseDPCM = false;
             
             % Start recursive run
-            [s,f,succeeded] = MUnit.recursiveRun(dir, curPackage, exclude);
+            [s,f,succeeded,abort] = MUnit.recursiveRun(dir, curPackage, returnonerror, exclude);
             
             a.UseDPCM = old;
             
             % Summary
-            fprintf('\n\n All Class Tests finished.\n');
+            if abort
+                fprintf('\n\n Test runs aborted.\n');
+            else
+                fprintf('\n\n All Class Tests finished.\n');
+            end
             cprintf(MUnit.GreenCol,'Successful:%d\n',s);
             cprintf('Red','Failed:%d\n',f);
         end
     end
     
     methods(Static, Access=private)
-        function [s,f,succeeded] = recursiveRun(dir, currentPackage, exclude)
+        function [s,f,succeeded,abort] = recursiveRun(folder, currentPackage, returnonerror, exclude)
             % Internal private recursion function.
             %
             % Parameters:
@@ -111,19 +118,40 @@ classdef MUnit
             % succeeded: A cell array of strings containing the fully
             % qualified names of functions that have successfully run.
             % Contains all values of exclude, if set. @type cell<char>
-            w = what(dir);
-            
-            % Some weird afs stuff goin on!
-            w=w(1);
             
             s = 0; f = 0; succeeded = exclude;
+            
+            % Descend into subfolders
+            dinf = dir(folder);
+            for idx = 1:length(dinf)
+                if dinf(idx).isdir
+                    subdir = dinf(idx).name;
+                    if ~any(strcmp(subdir,{'.','..'}))
+                        subdir = fullfile(folder,subdir);
+                        %disp(['Descending into ' subdir]);
+                        [sa,fa,succeeded,abort] = ...
+                            MUnit.recursiveRun(subdir, currentPackage, returnonerror, succeeded);
+                        s = s + sa;
+                        f = f + fa;
+                        if abort
+                            return;
+                        end
+                    end
+                end
+            end
+            
             % Descend into any package
+            w = what(folder);
+            w=w(1); % Some weird afs stuff goin on!
             for idx = 1:length(w.packages)
                 subdir = fullfile(w.path,['+' w.packages{idx}]);
                 %disp(['Descending into ' subdir]);
-                [sa,fa,succeeded] = MUnit.recursiveRun(subdir, [currentPackage w.packages{idx} '.'], succeeded);
+                [sa,fa,succeeded,abort] = MUnit.recursiveRun(subdir, [currentPackage w.packages{idx} '.'], returnonerror, succeeded);
                 s = s + sa;
                 f = f + fa;
+                if abort
+                    return;
+                end
             end
             
             pref = MUnit.TestFunctionPrefix;
@@ -137,7 +165,13 @@ classdef MUnit
                 
                 %disp(['Checking ' n '...']);
                 
-                mc = meta.class.fromName([currentPackage n]);
+                try
+                    mc = meta.class.fromName([currentPackage n]);
+                catch ME
+                    warning('Could not instantiate class %s: %s',[currentPackage n],ME.message);
+                    abort = true;
+                    return;
+                end
                 % mc is empty if m-file wasnt a class
                 if ~isempty(mc)
                     
@@ -185,6 +219,10 @@ classdef MUnit
                                     f = f+1;
                                     cprintf(MUnit.WarnCol,['Test ' mc.Name ' -> ' m.Name(6:end) ' failed!\nExeption information:\n']);
                                     disp(getReport(ME));
+                                    if returnonerror
+                                        abort = true;
+                                        return;
+                                    end
                                 end
                             else
                                 cprintf(MUnit.WarnCol,['Non-static test "%s" in %s found.'...
@@ -196,6 +234,7 @@ classdef MUnit
                     end
                 end
             end
+            abort = false;
         end
     end
 end
