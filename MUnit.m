@@ -196,9 +196,11 @@ classdef MUnit
                                 if any(strcmp(fullname,exclude))
                                     continue;
                                 end
-                                lines = '-----------------------------';
-                                fprintf(2,[lines ' running '...
-                                    mc.Name ' -> <a href="matlab:run(' mc.Name '.' m.Name ')">' m.Name(6:end) '</a>... ' lines '\n']);
+                                lines = '@--------------@---------------@';
+                                fprintf(2,[lines ' Running '...
+                                    '<a href="matlab:' mc.Name '.' m.Name '">' m.Name(6:end) '</a> ' ...
+                                    'in <a href="matlab:edit ' mc.Name '">' mc.Name '</a>' ...
+                                    '... ' lines '\n']);
                                 try
                                     eval(['outargs = nargout(@' fullname ');']);
                                     if outargs > 0
