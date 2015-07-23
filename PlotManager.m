@@ -913,7 +913,7 @@ classdef PlotManager < handle
             pm.UseFileTypeFolders = true;
             % Disable saving of titles!
             pm.NoTitlesOnSave = true;
-            pm.savePlots(pwd,'Close','true');
+            pm.savePlots(pwd,'Close',true);
         end
         
         function pm = demo_SavePlots_Details
