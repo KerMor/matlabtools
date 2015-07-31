@@ -121,6 +121,10 @@ classdef MUnit
             
             s = 0; f = 0; succeeded = exclude;
             
+            if exist(folder,'file') ~= 7
+                error('Folder %s does not seem to exist.',folder);
+            end
+            
             % Descend into subfolders
             dinf = dir(folder);
             for idx = 1:length(dinf)
