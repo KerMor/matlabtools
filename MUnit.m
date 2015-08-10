@@ -122,7 +122,10 @@ classdef MUnit
             s = 0; f = 0; succeeded = exclude;
             
             if exist(folder,'file') ~= 7
-                error('Folder %s does not seem to exist.',folder);
+                folder = fullfile(pwd,folder);
+                if exist(folder,'file') ~= 7
+                    error('Folder %s does not seem to exist.',folder);
+                end
             end
             
             % Descend into subfolders
