@@ -128,12 +128,12 @@ classdef MUnit
                 end
             end
             
-            % Descend into subfolders
+            % Descend into subfolders (that are not packages)
             dinf = dir(folder);
             for idx = 1:length(dinf)
                 if dinf(idx).isdir
                     subdir = dinf(idx).name;
-                    if ~any(strcmp(subdir,{'.','..'}))
+                    if ~any(strcmp(subdir,{'.','..'})) && subdir(1) ~= '+'
                         subdir = fullfile(folder,subdir);
                         %disp(['Descending into ' subdir]);
                         [sa,fa,succeeded,abort] = ...
@@ -205,11 +205,10 @@ classdef MUnit
                                 if any(strcmp(fullname,exclude))
                                     continue;
                                 end
-                                lines = '@--------------@---------------@';
-                                fprintf(2,[lines ' Running '...
+                                fprintf(2,['<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< Running '...
                                     '<a href="matlab:' mc.Name '.' m.Name '">' m.Name(6:end) '</a> ' ...
                                     'in <a href="matlab:edit ' mc.Name '">' mc.Name '</a>' ...
-                                    '... ' lines '\n']);
+                                    '... >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n']);
                                 try
                                     eval(['outargs = nargout(@' fullname ');']);
                                     if outargs > 0
