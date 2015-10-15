@@ -411,11 +411,11 @@ classdef PlotManager < handle
             % @default {}
             
             ip = inputParser;
-            ip.addParamValue('Format',this.SaveFormats,@(arg)(ischar(arg) || iscellstr(arg)) && ~isempty(arg));
-            ip.addParamValue('Close',false,@islogical);
-            ip.addParamValue('Selection',1:length(this.Figures),@isvector);
-            ip.addParamValue('SeparateLegends',false,@(arg)islogical(arg) && isvector(arg));
-            ip.addParamValue('XArgs',{},@iscellstr);
+            ip.addParameter('Format',this.SaveFormats,@(arg)(ischar(arg) || iscellstr(arg)) && ~isempty(arg));
+            ip.addParameter('Close',false,@islogical);
+            ip.addParameter('Selection',1:length(this.Figures),@isvector);
+            ip.addParameter('SeparateLegends',false,@(arg)islogical(arg) && isvector(arg));
+            ip.addParameter('XArgs',{},@iscellstr);
             if nargin < 2
                 folder = pwd;
             end
@@ -579,8 +579,8 @@ classdef PlotManager < handle
         
         function matchPlotAxes(~, ax_handles, varargin)
             ip = inputParser;
-            ip.addParamValue('Axis','YLim',@(arg)(ischar(arg)) && any(strcmp(arg,{'XLim','YLim','ZLim'})));
-            %ip.addParamValue('Selection',1:length(this.Figures),@isvector);
+            ip.addParameter('Axis','YLim',@(arg)(ischar(arg)) && any(strcmp(arg,{'XLim','YLim','ZLim'})));
+            %ip.addParameter('Selection',1:length(this.Figures),@isvector);
             ip.parse(varargin{:});
             res = ip.Results;
             lim = get(ax_handles(1),res.Axis);
