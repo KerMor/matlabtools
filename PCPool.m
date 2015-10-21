@@ -26,7 +26,7 @@ classdef PCPool < handle
             if PCPool.OldSyntax
                 res = matlabpool('size') > 0;%#ok
             else
-                res = isempty(gcp('nocreate'));
+                res = ~isempty(gcp('nocreate'));
             end
         end
         
@@ -43,7 +43,7 @@ classdef PCPool < handle
             % Opens a new pool using the specified arguments.
             % No arguments use the default pool.
             created = false;
-            if ~PCPool.isopen
+            if ~PCPool.isOpen
                 if PCPool.OldSyntax
                     matlabpool('open',varargin{:});%#ok
                 else
