@@ -64,7 +64,7 @@ classdef PCPool < handle
             if PCPool.OldSyntax
                 if force
                     matlabpool close force;%#ok
-                elseif ~PCPool.isopen
+                elseif ~PCPool.isOpen
                     matlabpool close;%#ok
                 end
             else
