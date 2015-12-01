@@ -26,6 +26,9 @@ classdef PlotManager < handle
 % % Zooms:
 % PlotManager.demo_Zoom
 %
+% @change{0,9,dw,2015-12-01} Added a legacy check for axes handles to also
+% cope with new MatLab versions greater than 8.4.0
+%
 % @change{0,7,dw,2014-01-15} Changed the property "SingleSize" to
 % "FigureSize". The sizes are now used whenever a new figure is created,
 % independently of being in single or subplot mode.
@@ -83,6 +86,10 @@ classdef PlotManager < handle
 %
 % @todo register onFigureClose callback to remove figure from handles list
     
+    properties(Constant)
+        LegacyHandles = verLessThan('matlab','8.4.0');
+    end
+
     properties
         % Flag if single plots shall be used for subsequent calls to
         % nextPlot.
@@ -757,7 +764,13 @@ classdef PlotManager < handle
             if ~isempty(this.SaveFont)
                 for k = 1:length(allax)
                     ax = allax(k);
-                    items = [ax cell2mat(get(ax,childs)) findobj(ax,'Type','text')'];
+                    % Adoption to MatLab2015a
+                    if PlotManager.LegacyHandles
+                        items = [ax cell2mat(get(ax,childs)) findobj(ax,'Type','text')'];
+                    else
+                        ch = get(ax,childs);
+                        items = [ax ch{:} findobj(ax,'Type','text')'];
+                    end
                     oldfonts{k} = get(items,fieldnames(this.SaveFont));
                     set(items,fieldnames(this.SaveFont),...
                         repmat(struct2cell(this.SaveFont)',numel(items),1));
@@ -780,8 +793,14 @@ classdef PlotManager < handle
             end
             if ~isempty(this.SaveFont)
                 for k = 1:length(allax)
-                    ax = allax(k); 
-                    items = [ax cell2mat(get(ax,childs)) findobj(ax,'Type','text')'];
+                    ax = allax(k);
+                    % Adoption to MatLab2015a
+                    if PlotManager.LegacyHandles
+                        items = [ax get(ax,childs) findobj(ax,'Type','text')'];
+                    else
+                        ch = get(ax,childs);
+                        items = [ax ch{:} findobj(ax,'Type','text')'];
+                    end
                     set(items,fieldnames(this.SaveFont),oldfonts{k});
                 end
             end

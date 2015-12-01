@@ -865,7 +865,7 @@ classdef PrintTable < handle
             end
             fprintf(fid,'\\end{document}');
             fclose(fid);
-            [status, msg] = system(sprintf('pdflatex -interaction=nonstopmode -output-directory="%s" %s',path,texfile));%#ok
+            [status, msg] = system(sprintf('pdflatex -interaction=nonstopmode -output-directory="%s" "%s"',path,texfile));%#ok
             if 0 ~= status
                 delete(fullfile(path, [fname '.pdf']));
                 fprintf(2,'PDF export failed, pdflatex finished with errors. See the <a href="matlab:edit(''%s'')">LaTeX logfile</a> for details.\n',fullfile(path, [fname '.log']));
