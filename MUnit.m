@@ -203,6 +203,7 @@ classdef MUnit
                             if m.Static
                                 fullname = [mc.Name '.' m.Name];
                                 if any(strcmp(fullname,exclude))
+                                    fprintf(2,['Skipping ' mc.Name '.' m.Name '...\n']);
                                     continue;
                                 end
                                 fprintf(2,['<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< Running '...
@@ -234,6 +235,7 @@ classdef MUnit
                                         return;
                                     end
                                 end
+                                close all;
                             else
                                 cprintf(MUnit.WarnCol,['Non-static test "%s" in %s found.'...
                                     'Should this be static?\n'],...

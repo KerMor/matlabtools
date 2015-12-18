@@ -102,6 +102,11 @@ classdef LineSpecIterator < handle
             this.cursc = mod(this.cursc+1,length(this.ShortColors));
         end
         
+        function ls = nextColorMarkerStyle(this)
+            ls = [this.ShortColors{this.cursc+1} this.nextMarkerStyle];
+            this.cursc = mod(this.cursc+1,length(this.ShortColors));
+        end
+        
         function c = nextShortColor(this, linestyle)
             if nargin < 2
                 linestyle = '-';

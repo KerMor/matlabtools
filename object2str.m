@@ -69,10 +69,10 @@ sizelbl = {'G','M','k','b'};
             idx = sortedidx(n);
             p = mc.Properties{idx};
             addbytes = 0;
-            if strcmp(p.GetAccess,'public')
+            if strcmp(p.GetAccess,'public') && ~p.Hidden
                 str = [str repmat('\t',1,numtabs) '.']; %#ok<*AGROW>
                 pobj = obj.(p.Name);
-                if ~isempty(pobj) && ~any(cellfun(@(el)isequal(pobj,el),done))
+                if ~isempty(pobj) && numel(pobj) == 1 && ~any(cellfun(@(el)eq(pobj,el),done))
                     % Pre-compute addbytes and only override if pobj is object itself
                     tmp = whos('pobj');
                     addbytes = tmp.bytes;

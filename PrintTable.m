@@ -821,7 +821,7 @@ classdef PrintTable < handle
                 this.printRow(ridx,outfile,'& ');
                 fprintf(outfile,'\\\\\n');
                 if ridx == 1 && this.HasHeader
-                    fprintf(outfile,'\t\t\\hline\\\\\n');
+                    fprintf(outfile,'\t\t\\hline\n');
                 end
             end
             fprintf(outfile, '\t\\end{tabular}\n');
